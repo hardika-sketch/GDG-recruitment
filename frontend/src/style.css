@@ -932,10 +932,81 @@ body.light-mode .dialog-overlay {
   line-height: 1.6;
 }
 
-/* Spin animation for submission loader */
-@keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+/* Application Records Drawer Styles */
+.records-list-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 12px;
+}
+
+.record-card {
+  border: 1px solid var(--border-color);
+  background-color: var(--bg-secondary);
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  position: relative;
+  transition: border-color var(--transition);
+}
+
+.record-card:hover {
+  border-color: var(--border-hover);
+}
+
+.record-card h4 {
+  font-family: var(--font-sans);
+  font-size: 16px;
+  font-weight: 700;
+  text-transform: uppercase;
+  margin: 0;
+  letter-spacing: -0.02em;
+}
+
+.record-card-status-active {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  text-transform: uppercase;
+  color: var(--success);
+  border: 1px solid var(--success);
+  padding: 2px 8px;
+  background-color: rgba(0, 255, 102, 0.05);
+}
+
+.record-card-status-offline {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
+  padding: 2px 8px;
+  background-color: rgba(255, 255, 255, 0.02);
+}
+
+.record-details-grid {
+  font-size: 12px;
+  color: var(--text-secondary);
+  display: grid;
+  grid-template-columns: 80px 1fr;
+  gap: 6px 12px;
+  line-height: 1.4;
+}
+
+.record-details-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.record-details-val {
+  color: var(--text-primary);
+}
+
+.record-details-val-sop {
+  font-style: italic;
+  color: var(--text-secondary);
 }
 
 /* Responsive adjustments */
