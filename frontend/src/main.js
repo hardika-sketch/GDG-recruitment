@@ -1,3 +1,4 @@
+import './style.css';
 import { societies as fallbackSocieties } from './data.js';
 import { quizQuestions, getRecommendation } from './quiz.js';
 import * as validator from './validation.js';
