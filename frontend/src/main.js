@@ -359,7 +359,7 @@ function renderApplyFormView() {
       </div>
 
       <!-- Server error banner (hidden by default) -->
-      <div id="server-error-banner" class="error-msg" style="display: none; background: rgba(var(--error-rgb), 0.08); padding: 12px 16px; border-radius: var(--radius-sm); border: 1px solid rgba(var(--error-rgb), 0.2);">
+      <div id="server-error-banner" class="error-msg" style="display: none; background: rgba(var(--error-rgb), 0.08); padding: 12px 16px; border-radius: var(--radius); border: 1px solid rgba(var(--error-rgb), 0.2);">
         <i data-lucide="wifi-off" style="width: 14px; height: 14px;"></i>
         <span class="error-text" id="server-error-text"></span>
       </div>
@@ -543,7 +543,7 @@ function renderQuizContent() {
     const card = document.createElement('div');
     card.className = 'quiz-card';
     card.innerHTML = `
-      <div class="quiz-progress-bar" style="width: ${progressPercent}%;"></div>
+      <div class="quiz-progress-bar" style="transform: scaleX(${progressPercent / 100});"></div>
       <div class="quiz-header">
         <span class="quiz-step-indicator">Question ${currentQuizQuestionIndex + 1} of ${totalQuestions}</span>
         <button class="close-btn" id="quiz-close-btn"><i data-lucide="x"></i></button>
@@ -577,7 +577,7 @@ function renderQuizContent() {
     const card = document.createElement('div');
     card.className = 'quiz-card';
     card.innerHTML = `
-      <div class="quiz-progress-bar" style="width: 100%;"></div>
+      <div class="quiz-progress-bar" style="transform: scaleX(1);"></div>
       <div class="quiz-results-container">
         <div class="quiz-results-sparkle">✨</div>
         <span class="quiz-results-headline">Your Best Match Is</span>

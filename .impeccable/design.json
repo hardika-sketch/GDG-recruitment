@@ -1,0 +1,57 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-27T17:41:00Z",
+  "title": "Design System: SocietiesExplorer",
+  "extensions": {
+    "colorMeta": {
+      "primary": { "role": "primary", "displayName": "Stark White", "canonical": "#ffffff", "tonalRamp": ["#ffffff", "#e4e4e7", "#a1a1aa", "#71717a", "#52525b", "#3f3f46", "#27272a", "#18181b"] },
+      "neutral-bg": { "role": "neutral", "displayName": "Deep Gray Background", "canonical": "#0a0a0a", "tonalRamp": ["#000000", "#09090b", "#0a0a0a", "#121212", "#18181b", "#27272a", "#3f3f46", "#52525b"] }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Space Mono Title", "purpose": "Hero headers only." },
+      "body": { "displayName": "Archivo Body", "purpose": "Main content legibility." }
+    },
+    "motion": [
+      { "name": "transition-standard", "value": "0.15s cubic-bezier(0.16, 1, 0.3, 1)", "purpose": "General hover transitions and toggle themes." },
+      { "name": "transition-slow", "value": "0.3s cubic-bezier(0.16, 1, 0.3, 1)", "purpose": "Overlay drawers and quiz transitions." }
+    ],
+    "breakpoints": [
+      { "name": "mobile", "value": "768px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Standard action call to action.",
+      "html": "<button class=\"ds-btn-primary\">FIND MY FIT</button>",
+      "css": ".ds-btn-primary { background: #ffffff; color: #000000; font-family: 'Space Mono', monospace; font-size: 12px; font-weight: 700; text-transform: uppercase; padding: 10px 18px; border: 1px solid #ffffff; border-radius: 0px; cursor: pointer; transition: 0.15s cubic-bezier(0.16, 1, 0.3, 1); } .ds-btn-primary:hover { background: transparent; color: #ffffff; border-color: #ffffff; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Modern Grid Lab",
+    "overview": "SocietiesExplorer utilizes a minimalist high-contrast monochrome design system focused on geometric layouts, thin line borders, and structured information delivery.",
+    "keyCharacteristics": [
+      "Absolute Monochrome: Rely exclusively on black, white, and precise gray tones.",
+      "Outlined Containers: Define sections and controls using thin, 1px solid borders.",
+      "Industrial Typography: Pair a structural sans-serif font for readability with a monospaced typeface for UI action elements, tags, and headlines.",
+      "Snappy Transitions: Fast, compositor-based UI animations."
+    ],
+    "rules": [
+      { "name": "The Stark State Rule", "body": "Background and text colors invert strictly for active or hovered components, turning black-on-white text into white-on-black or vice-versa to indicate focus, rather than introducing color overlays.", "section": "colors" },
+      { "name": "The Action Mono Rule", "body": "All buttons, clickable pills, and interactive inputs are written in the uppercase, monospaced font family to separate tasks from the reading content.", "section": "typography" },
+      { "name": "The Flat-By-Rest Rule", "body": "All elements sit on the same level at rest. Active overlays or details drawers slide in on top with solid borders, rather than utilizing ambient soft drop shadows.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do align all active UI elements to the grid and enforce 1px outline spacing.",
+      "Do write buttons and metrics in Space Mono for a technical, editorial feel.",
+      "Do use CSS transitions for opacity and transforms to guarantee 60fps animations."
+    ],
+    "donts": [
+      "Don't use box-shadow rules or blur overlays.",
+      "Don't use border-radius values higher than 0px except for filter pills which use capsule shapes.",
+      "Don't introduce colorful highlights or gradients to denote categories; utilize strict typography weight differences instead."
+    ]
+  }
+}
