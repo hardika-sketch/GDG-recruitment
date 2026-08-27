@@ -26,12 +26,12 @@ Used on desktop and mobile web (responsive), typically in the weeks leading up t
 - Form validation on the client-side (length, character checks) and standard API integration for submission.
 
 ## Brand Commitments
-- Name: SocietiesExplorer
-- Brand Mark: SE
+- Name: Societies Explorer
+- Brand Mark: S|E
 - Aesthetic: Minimalist high-contrast monochrome with precise accents and smooth micro-animations. No bloated "AI slop" styling or generic gradients.
 
 ## Evidence on Hand
-- Offline fallback data with 6 standard campus societies ([data.js](file:///c:/Users/HARDIKA/Desktop/ME/GDG/frontend/src/data.js)).
+- Offline fallback data with 10 campus societies ([data.js](file:///c:/Users/HARDIKA/Desktop/ME/GDG/frontend/src/data.js)).
 - Active backend with API endpoints for retrieving societies (`GET /api/societies`) and submitting applications (`POST /api/applications`).
 
 ## Product Principles

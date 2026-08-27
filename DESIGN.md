@@ -1,5 +1,5 @@
 ---
-name: SocietiesExplorer
+name: Societies Explorer
 description: Minimalist High-Contrast Monochrome Design System
 colors:
   primary: "#ffffff"
@@ -27,13 +27,13 @@ components:
     padding: "10px 18px"
 ---
 
-# Design System: SocietiesExplorer
+# Design System: Societies Explorer
 
 ## Overview
 
 **Creative North Star: "The Modern Grid Lab"**
 
-SocietiesExplorer utilizes a minimalist high-contrast monochrome design system focused on geometric layouts, thin line borders, and structured information delivery. It rejects common modern design tropes such as colorful linear gradients, drop-shadow glow effects, and heavily rounded corners, opting instead for pure, raw layouts reminiscent of high-end technical document design.
+Societies Explorer utilizes a minimalist high-contrast monochrome design system focused on geometric layouts, thin line borders, and structured information delivery. It rejects common modern design tropes such as colorful linear gradients, drop-shadow glow effects, and heavily rounded corners, opting instead for pure, raw layouts reminiscent of high-end technical document design.
 
 ### Key Characteristics:
 - **Absolute Monochrome**: Rely exclusively on black, white, and precise gray tones.

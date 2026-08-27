@@ -1,86 +1,162 @@
 export const societies = [
   {
-    id: "codecrafters",
-    name: "CodeCrafters",
+    id: "gdg",
+    name: "Google Developer Group",
     category: "Technical",
-    tagline: "Crafting code, building the future.",
+    tagline: "Code. Build. Innovate.",
     icon: "code",
-    description: "CodeCrafters is the premier coding club on campus. We focus on full-stack web development, open-source contributions, competitive programming, and emerging tech like Web3 and AI/ML. Our weekly hack sessions and workshops help members turn concepts into working software products.",
-    criteria: "Basic familiarity with any programming language (Python, JS, C++, etc.). Passion for building projects and working in collaborative teams. Candidates must complete a short practical challenge during our recruitment drive.",
+    description: "Google Developer Group (GDG) is the flagship technical society on campus dedicated to coding, technology, and AI/ML. We build real-world projects using Google technologies — from Android and Flutter to TensorFlow and Cloud. Our members participate in hackathons, contribute to open-source, host tech talks by industry engineers, and organize the campus's largest annual coding fest. Whether you're into web dev, machine learning research, or competitive programming, GDG is your launchpad.",
+    criteria: "Proficiency in at least one programming language (Python, JavaScript, C++, Java, etc.). Demonstrate problem-solving ability through a live coding challenge. Bonus points for open-source contributions, published projects, or prior hackathon participation. Passion for continuous learning is non-negotiable.",
     roles: [
       "Full Stack Developer",
-      "AI/ML Research Coordinator",
-      "Technical Writer & Editor"
+      "AI/ML Research Lead",
+      "Cloud & DevOps Engineer",
+      "Technical Content Writer",
+      "Community Manager"
     ]
   },
   {
-    id: "aerorobotics",
-    name: "AeroRobotics",
+    id: "crosslinks",
+    name: "Crosslinks",
+    category: "Media",
+    tagline: "Amplify voices. Shape narratives.",
+    icon: "megaphone",
+    description: "Crosslinks is the campus media, public relations, and communications powerhouse. We manage institutional coverage, run social media campaigns, produce video documentaries, write press releases, and host talk shows. From live-tweeting campus events to producing polished editorial content, we are the storytellers of the institution. If you have an eye for news, a voice for podcasting, or a talent for strategic communications — Crosslinks is where you belong.",
+    criteria: "Strong written and verbal communication skills. Submit a portfolio piece — an article, video script, social media campaign mock-up, or PR plan. Candidates are evaluated on clarity of thought, creativity, and media literacy. Prior experience with content creation tools (Canva, Premiere Pro, WordPress) is a plus.",
+    roles: [
+      "Content Strategist",
+      "Video Producer & Editor",
+      "Social Media Manager",
+      "PR & Outreach Coordinator",
+      "Podcast Host"
+    ]
+  },
+  {
+    id: "ares",
+    name: "ARES",
     category: "Technical",
-    tagline: "Reach for the sky, control from the ground.",
+    tagline: "Engineer the impossible.",
     icon: "cpu",
-    description: "AeroRobotics focuses on drone design, autonomous rovers, and mechanical automation. We compete in national robotics challenges and collaborate with departments to construct industry-ready hardware and embedded systems.",
-    criteria: "Interest in CAD modeling, PCB design, embedded programming (Arduino/Raspberry Pi), or drone assembly. Prior project experience is a plus, but curiosity and dedication are mandatory.",
+    description: "ARES (Advanced Robotics & Engineering Society) is where hardware meets software. We design autonomous rovers, build drone systems, construct robotic arms, and compete in national-level robotics championships. Our workshop is a playground of 3D printers, soldering stations, microcontrollers, and sensor arrays. ARES members collaborate across mechanical, electrical, and software engineering disciplines to push the boundaries of what campus-built machines can achieve.",
+    criteria: "Interest in embedded systems (Arduino, Raspberry Pi, ESP32), CAD modeling (SolidWorks, Fusion 360), or ROS. Candidates must demonstrate hands-on aptitude through a practical task involving circuit assembly or basic programming. Mechanical design experience and participation in tech competitions are valued.",
     roles: [
       "Embedded Systems Engineer",
-      "CAD & Hardware Designer",
-      "Operations & Sponsorship Lead"
+      "Mechanical Design Lead",
+      "Drone Pilot & Systems Architect",
+      "Software Integration Developer",
+      "Operations & Sponsorship Head"
     ]
   },
   {
-    id: "melodyminds",
-    name: "MelodyMinds",
+    id: "junoon",
+    name: "Junoon",
+    category: "Creative",
+    tagline: "Frame the world, one click at a time.",
+    icon: "camera",
+    description: "Junoon is the official photography society — a collective of visual storytellers who capture campus life through lenses. From street photography and portraits to long-exposure night shots and event coverage, we document moments that define the college experience. We host photo walks, editing masterclasses, darkroom workshops, and an annual photography exhibition. Junoon members are the visual memory of the institution.",
+    criteria: "Submit a portfolio of 5-10 original photographs showcasing range (portraits, landscape, street, macro, etc.). Candidates are evaluated on composition, storytelling ability, and technical understanding of exposure, lighting, and post-processing. Knowledge of Lightroom or Photoshop is preferred. DSLR ownership is not mandatory — phone photography portfolios are welcome.",
+    roles: [
+      "Lead Photographer",
+      "Photo Editor & Retoucher",
+      "Event Coverage Coordinator",
+      "Exhibition Curator",
+      "Social Media Visual Lead"
+    ]
+  },
+  {
+    id: "tds",
+    name: "TDS",
+    category: "Technical",
+    tagline: "Think. Debug. Solve.",
+    icon: "terminal",
+    description: "TDS (The Debug Society) is the competitive programming and data structures & algorithms society. We live and breathe problem-solving — from Codeforces rounds and LeetCode contests to ICPC regionals. Our weekly practice sessions cover graph theory, dynamic programming, number theory, and advanced data structures. TDS members consistently rank among the top competitive programmers in inter-college competitions and placement coding rounds.",
+    criteria: "Solve a timed competitive programming problem set (3-5 problems of varying difficulty). Candidates must demonstrate strong logical reasoning and algorithmic thinking. Familiarity with at least one CP language (C++, Java, Python) and basic DSA concepts (arrays, sorting, recursion, trees) is expected. Codeforces / LeetCode / CodeChef ratings are considered.",
+    roles: [
+      "Problem Setter",
+      "Contest Coordinator",
+      "CP Mentor & Trainer",
+      "Editorial Writer",
+      "Platform & Infrastructure Lead"
+    ]
+  },
+  {
+    id: "intaglios",
+    name: "Intaglios",
+    category: "Creative",
+    tagline: "Design is intelligence made visible.",
+    icon: "palette",
+    description: "Intaglios is the design, UI/UX, and graphics society — where aesthetics meet functionality. We create brand identities, design event posters, build UI prototypes, and run design sprints. Our members work across Figma, Adobe Creative Suite, Blender, and motion graphics tools to produce visual experiences that are both beautiful and purposeful. From campus fest branding to app interface design, Intaglios sets the visual standard.",
+    criteria: "Submit a design portfolio showcasing 3-5 works (posters, UI mockups, logos, illustrations, or motion graphics). Candidates are evaluated on visual hierarchy, typography, color theory, and creative originality. Proficiency in Figma, Illustrator, or Photoshop is expected. A short live design challenge may be conducted during recruitment.",
+    roles: [
+      "UI/UX Designer",
+      "Graphic Designer",
+      "Motion Graphics Artist",
+      "Brand Identity Lead",
+      "Design System Architect"
+    ]
+  },
+  {
+    id: "ashwamedh",
+    name: "Ashwamedh",
+    category: "Cultural",
+    tagline: "All the campus is a stage.",
+    icon: "theater",
+    description: "Ashwamedh is the theatre and dramatics society — the beating heart of campus performance art. We produce original street plays (Nukkad Natak), stage dramas, mono-acts, mime performances, and stand-up showcases. Our rehearsal room echoes with voice modulation exercises, improvisational games, and script readings. Ashwamedh represents the institution at national-level theatre festivals and is known for thought-provoking social commentary through performance.",
+    criteria: "Auditions evaluate expression, voice modulation, body language, confidence, and stage presence through improvisation rounds and monologue delivery. For backstage roles, candidates must demonstrate skills in scriptwriting, direction, set design, lighting, or sound engineering. A passion for storytelling in any form is the most important criterion.",
+    roles: [
+      "Lead Actor / Performer",
+      "Scriptwriter & Director",
+      "Stage & Set Designer",
+      "Sound & Lighting Technician",
+      "Production Manager"
+    ]
+  },
+  {
+    id: "crescendo",
+    name: "Crescendo",
     category: "Cultural",
     tagline: "Where rhythms meet souls.",
     icon: "music",
-    description: "MelodyMinds brings together the finest vocalists, instrumentalists, and composers on campus. From classical Indian melodies to rock and indie, we host unplugged jam sessions, street performances, and represent the institute at national cultural fests.",
-    criteria: "Must perform a short vocal or instrumental piece of choice. Ability to coordinate in groups or compose original arrangements is highly valued.",
+    description: "Crescendo is the music and singing society — a collective of vocalists, instrumentalists, and composers who fill the campus with melody. From Indian classical ragas and Bollywood medleys to rock anthems and indie originals, we cover the full spectrum. Our members perform at college fests, open-mic nights, unplugged sessions, and inter-college music battles. We also run instrument workshops and vocal training camps for beginners.",
+    criteria: "Perform a 2-3 minute vocal or instrumental audition piece of your choice. Candidates are evaluated on pitch accuracy, rhythm, tonal quality, and stage comfort. Knowledge of music theory is appreciated but not mandatory. Ability to collaborate in a band or ensemble setting is highly valued. Composers and beatmakers are also welcome.",
     roles: [
       "Lead Vocalist",
-      "Keyboardist / Synth Player",
-      "Event Production Coordinator"
+      "Instrumentalist (Guitar/Keys/Drums)",
+      "Music Composer & Arranger",
+      "Sound Engineer",
+      "Event & Gig Coordinator"
     ]
   },
   {
-    id: "thespians",
-    name: "Thespians Society",
+    id: "mirage",
+    name: "Mirage",
     category: "Cultural",
-    tagline: "All the campus is a stage.",
-    icon: "clapperboard",
-    description: "Thespians is our active dramatics and theater club, producing original street plays (Nukkad Natak), stage dramas, and mime performances. We express, critique, and entertain through the art of live performance.",
-    criteria: "Auditions assess expression, voice modulation, confidence, and stage presence. For back-stage roles, portfolio or interest in lighting, scriptwriting, and sound design is evaluated.",
+    tagline: "Move. Express. Ignite.",
+    icon: "zap",
+    description: "Mirage is the western dance society — a high-energy crew of dancers who specialize in contemporary, hip-hop, popping, locking, waacking, and freestyle. From flash mobs in the campus courtyard to choreographed performances at national dance competitions, Mirage brings raw energy and artistic precision to every stage. We hold daily practice sessions, choreography workshops, and dance battles that push members to constantly evolve their craft.",
+    criteria: "Auditions involve performing a prepared choreography or freestyle piece (1-2 minutes) in any western dance style. Candidates are judged on rhythm, body control, expression, musicality, and stage presence. Prior dance training is preferred but natural talent and willingness to train intensely are equally valued. Choreographers and crew managers are also recruited.",
     roles: [
-      "Performer / Actor",
-      "Scriptwriter & Director",
-      "Stage & Lighting Manager"
+      "Lead Choreographer",
+      "Performance Captain",
+      "Freestyle Battle Lead",
+      "Costume & Visual Director",
+      "Practice Session Coordinator"
     ]
   },
   {
-    id: "debateguild",
-    name: "Debate Guild",
-    category: "Literary",
-    tagline: "Speak to persuade, listen to learn.",
-    icon: "book-open",
-    description: "The Debate Guild is the hub of intellectual discussions, model parliaments, and literary expression. We host workshops on rhetoric, public speaking, policy research, and prepare debaters for prestigious national championships.",
-    criteria: "A simple speech presentation on a randomly assigned topic (extempore) followed by a short interview evaluating argumentative logic and current affairs awareness.",
+    id: "canvas",
+    name: "Canvas",
+    category: "Creative",
+    tagline: "Art speaks where words fail.",
+    icon: "brush",
+    description: "Canvas is the fine arts and visual art society — a sanctuary for painters, sketchers, sculptors, and mixed-media artists. We host life drawing sessions, mural painting projects, art exhibitions, and collaborative installations. Canvas members transform blank walls into campus landmarks and blank paper into gallery-worthy pieces. From charcoal sketches to oil on canvas, watercolor washes to digital painting — every medium finds a home here.",
+    criteria: "Submit a portfolio of 5-8 original artworks across any medium (pencil, charcoal, watercolor, acrylic, digital, mixed media). Candidates are evaluated on technique, creativity, composition, and conceptual depth. A live sketching round may be conducted during recruitment. Willingness to participate in collaborative art projects and campus mural initiatives is expected.",
     roles: [
-      "Parliamentary Debater",
-      "Research & Policy Analyst",
-      "Social Media Editor"
-    ]
-  },
-  {
-    id: "sprintstrength",
-    name: "Sprint & Strength",
-    category: "Sports",
-    tagline: "Excellence in motion.",
-    icon: "trophy",
-    description: "Sprint & Strength is the campus athletics and fitness club. We coordinate cross-country runs, physical conditioning camps, and powerlifting tournaments, fostering a strong culture of physical health, resilience, and teamwork.",
-    criteria: "Participation in any physical fitness test (100m sprint, push-ups, or flexibility test). Consistent dedication to fitness and sportsmanship is key.",
-    roles: [
-      "Track & Field Athlete",
-      "Assistant Fitness Coach",
-      "Logistics Coordinator"
+      "Lead Visual Artist",
+      "Mural & Installation Coordinator",
+      "Exhibition Curator",
+      "Digital Art Specialist",
+      "Workshop Facilitator"
     ]
   }
 ];

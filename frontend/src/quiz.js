@@ -5,30 +5,40 @@ export const quizQuestions = [
     id: 1,
     question: "How do you prefer to spend your free time?",
     options: [
-      { text: "Solving puzzles, building mini-apps, or exploring gadgets", scores: { Technical: 3, Literary: 0, Cultural: 0, Sports: 0 } },
-      { text: "Singing, playing instruments, or acting in front of a mirror", scores: { Technical: 0, Literary: 0, Cultural: 3, Sports: 0 } },
-      { text: "Running, playing outdoor games, or physical training", scores: { Technical: 0, Literary: 0, Cultural: 0, Sports: 3 } },
-      { text: "Reading, analyzing policies, or participating in discussions", scores: { Technical: 1, Literary: 3, Cultural: 0, Sports: 0 } }
+      { text: "Writing code, building apps, or tinkering with hardware", scores: { Technical: 3, Media: 0, Creative: 0, Cultural: 0 } },
+      { text: "Shooting photos, designing posters, or painting", scores: { Technical: 0, Media: 0, Creative: 3, Cultural: 0 } },
+      { text: "Singing, dancing, or rehearsing a dramatic scene", scores: { Technical: 0, Media: 0, Creative: 0, Cultural: 3 } },
+      { text: "Writing articles, making videos, or managing social media", scores: { Technical: 0, Media: 3, Creative: 0, Cultural: 0 } }
     ]
   },
   {
     id: 2,
     question: "Which of these environments excites you the most?",
     options: [
-      { text: "A desk full of wiring, microcontrollers, and screens", scores: { Technical: 3, Literary: 0, Cultural: 0, Sports: 0 } },
-      { text: "A vibrant stage lit by spotlights and filled with sound", scores: { Technical: 0, Literary: 0, Cultural: 3, Sports: 0 } },
-      { text: "An open running track, sports field, or physical gym", scores: { Technical: 0, Literary: 0, Cultural: 0, Sports: 3 } },
-      { text: "A formal podium or a round-table room for public debates", scores: { Technical: 0, Literary: 3, Cultural: 0, Sports: 0 } }
+      { text: "A desk full of monitors, microcontrollers, and IDE screens", scores: { Technical: 3, Media: 0, Creative: 0, Cultural: 0 } },
+      { text: "A vibrant stage lit by spotlights and filled with energy", scores: { Technical: 0, Media: 0, Creative: 0, Cultural: 3 } },
+      { text: "A studio with canvases, cameras, and design tools everywhere", scores: { Technical: 0, Media: 0, Creative: 3, Cultural: 0 } },
+      { text: "A newsroom buzzing with stories, edits, and live broadcasts", scores: { Technical: 0, Media: 3, Creative: 0, Cultural: 0 } }
     ]
   },
   {
     id: 3,
-    question: "What is your primary goal for joining a student club?",
+    question: "What is your primary goal for joining a student society?",
     options: [
-      { text: "To learn hard technical skills and build real projects", scores: { Technical: 3, Literary: 0, Cultural: 0, Sports: 0 } },
-      { text: "To express myself creatively and perform for an audience", scores: { Technical: 0, Literary: 0, Cultural: 3, Sports: 0 } },
-      { text: "To build physical discipline, stamina, and team spirit", scores: { Technical: 0, Literary: 0, Cultural: 0, Sports: 3 } },
-      { text: "To refine my verbal rhetoric, writing, and logical arguments", scores: { Technical: 0, Literary: 3, Cultural: 0, Sports: 0 } }
+      { text: "To build technical skills and ship real projects", scores: { Technical: 3, Media: 0, Creative: 0, Cultural: 0 } },
+      { text: "To express myself through art, design, or visual storytelling", scores: { Technical: 0, Media: 0, Creative: 3, Cultural: 0 } },
+      { text: "To perform, entertain, and connect with an audience", scores: { Technical: 0, Media: 0, Creative: 0, Cultural: 3 } },
+      { text: "To influence opinions, build a brand, and communicate ideas", scores: { Technical: 0, Media: 3, Creative: 0, Cultural: 0 } }
+    ]
+  },
+  {
+    id: 4,
+    question: "Which skill are you most proud of?",
+    options: [
+      { text: "Problem-solving and logical thinking", scores: { Technical: 3, Media: 0, Creative: 1, Cultural: 0 } },
+      { text: "Visual aesthetics and an eye for detail", scores: { Technical: 0, Media: 1, Creative: 3, Cultural: 0 } },
+      { text: "Stage presence, confidence, and body expression", scores: { Technical: 0, Media: 0, Creative: 0, Cultural: 3 } },
+      { text: "Persuasive writing and clear communication", scores: { Technical: 0, Media: 3, Creative: 0, Cultural: 1 } }
     ]
   }
 ];
@@ -36,9 +46,9 @@ export const quizQuestions = [
 export function getRecommendation(answers) {
   const categoryScores = {
     Technical: 0,
-    Cultural: 0,
-    Sports: 0,
-    Literary: 0
+    Media: 0,
+    Creative: 0,
+    Cultural: 0
   };
 
   // Sum up scores based on chosen options
