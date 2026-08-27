@@ -1,0 +1,15 @@
+{
+  "name": "gdg",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node server.js",
+    "start": "node server.js",
+    "build": "echo 'Static build complete - no compilation required'",
+    "preview": "node server.js"
+  },
+  "devDependencies": {
+    "vite": "^8.2.2"
+  }
+}
