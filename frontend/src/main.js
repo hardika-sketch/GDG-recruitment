@@ -1,16 +1,25 @@
-import { societies } from './data.js';
+import { societies as fallbackSocieties } from './data.js';
 import { quizQuestions, getRecommendation } from './quiz.js';
 import * as validator from './validation.js';
 
-// Application State
+// ─── API Configuration ──────────────────────────────────────────────────────
+// In Vite production builds (Vercel), this reads from the VITE_API_URL env var.
+// For local dev with server.js, it falls back to localhost:5000.
+const API_BASE_URL = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_URL)
+  ? import.meta.env.VITE_API_URL
+  : 'http://localhost:5000';
+
+// ─── Application State ──────────────────────────────────────────────────────
+let societies = [];           // Populated dynamically from API
 let currentCategory = 'All';
 let searchQuery = '';
 let selectedSociety = null;
-let drawerViewMode = 'details'; // 'details' or 'apply'
+let drawerViewMode = 'details';
 let currentQuizQuestionIndex = 0;
 let quizAnswers = [];
+let isSubmitting = false;     // Prevent double-submissions
 
-// DOM Elements Cache
+// ─── DOM Elements Cache ─────────────────────────────────────────────────────
 const societiesGrid = document.getElementById('societies-grid');
 const searchBar = document.getElementById('search-bar');
 const filtersContainer = document.getElementById('filters-container');
@@ -27,8 +36,8 @@ const themeToggleBtn = document.getElementById('theme-toggle-btn');
 const successDialog = document.getElementById('success-dialog');
 const successDialogCloseBtn = document.getElementById('success-dialog-close-btn');
 
-// Initialize the Application
-window.addEventListener('DOMContentLoaded', () => {
+// ─── Initialize Application ─────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', async () => {
   // Retrieve saved theme preference
   const savedTheme = localStorage.getItem('theme');
   if (savedTheme === 'light') {
@@ -36,45 +45,83 @@ window.addEventListener('DOMContentLoaded', () => {
     toggleThemeIcons(true);
   }
 
-  // Setup Event Listeners
   setupEventListeners();
 
-  // Simulate premium skeleton loading transition for 800ms
-  setTimeout(() => {
-    renderFilters();
-    renderSocieties();
-  }, 800);
+  // Fetch societies from backend API dynamically
+  await loadSocieties();
 });
 
-// Event Listeners Configuration
+// ─── Dynamic Data Fetching ──────────────────────────────────────────────────
+async function loadSocieties() {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/societies`);
+
+    if (!response.ok) {
+      throw new Error(`API responded with status ${response.status}`);
+    }
+
+    const data = await response.json();
+
+    // Supabase returns snake_case columns; normalize to camelCase
+    societies = data.map(s => ({
+      id: s.id,
+      name: s.name,
+      category: s.category,
+      tagline: s.tagline,
+      icon: s.icon,
+      description: s.description,
+      criteria: s.criteria,
+      roles: s.roles
+    }));
+
+    console.log(`✅ Loaded ${societies.length} societies from API`);
+  } catch (err) {
+    console.warn('⚠️ Could not reach backend API. Using offline fallback data.', err.message);
+    societies = [...fallbackSocieties];
+  }
+
+  renderFilters();
+  renderSocieties();
+}
+
+// ─── Submit Application to Backend ──────────────────────────────────────────
+async function submitApplication(payload) {
+  const response = await fetch(`${API_BASE_URL}/api/applications`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.json().catch(() => ({}));
+    throw new Error(errorBody.error || `Server error (${response.status})`);
+  }
+
+  return response.json();
+}
+
+// ─── Event Listeners ────────────────────────────────────────────────────────
 function setupEventListeners() {
-  // Theme Toggle
   themeToggleBtn.addEventListener('click', toggleTheme);
 
-  // Search input with dynamic filtering
   searchBar.addEventListener('input', (e) => {
     searchQuery = e.target.value;
     renderSocieties();
   });
 
-  // Clear filters empty state button
   clearSearchBtn.addEventListener('click', resetFilters);
 
-  // Close overlays when clicking outside
   drawerOverlay.addEventListener('click', () => {
     closeDrawer();
     closeQuiz();
   });
 
-  // Quiz toggler
   quizToggleBtn.addEventListener('click', openQuiz);
 
-  // Close success modal
   successDialogCloseBtn.addEventListener('click', () => {
     successDialog.classList.remove('active');
   });
 
-  // Handle escape key to close overlays
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
       closeDrawer();
@@ -84,7 +131,7 @@ function setupEventListeners() {
   });
 }
 
-// Theme Management
+// ─── Theme Management ───────────────────────────────────────────────────────
 function toggleTheme() {
   const isLight = document.body.classList.toggle('light-mode');
   localStorage.setItem('theme', isLight ? 'light' : 'dark');
@@ -103,11 +150,10 @@ function toggleThemeIcons(isLight) {
   }
 }
 
-// Render Filter Buttons
+// ─── Filter Badges ──────────────────────────────────────────────────────────
 function renderFilters() {
-  // Extract unique categories and add 'All'
   const categories = ['All', ...new Set(societies.map(s => s.category))];
-  
+
   filtersContainer.innerHTML = '';
   categories.forEach(cat => {
     const badge = document.createElement('button');
@@ -115,7 +161,6 @@ function renderFilters() {
     badge.textContent = cat;
     badge.addEventListener('click', () => {
       currentCategory = cat;
-      // Update active badge styling
       document.querySelectorAll('.filter-badge').forEach(b => b.classList.remove('active'));
       badge.classList.add('active');
       renderSocieties();
@@ -124,7 +169,6 @@ function renderFilters() {
   });
 }
 
-// Reset Search & Filters
 function resetFilters() {
   currentCategory = 'All';
   searchQuery = '';
@@ -133,27 +177,23 @@ function resetFilters() {
   renderSocieties();
 }
 
-// Render Society Cards Grid
+// ─── Society Cards Grid ─────────────────────────────────────────────────────
 function renderSocieties() {
-  // Filter societies based on category and search query
   const filtered = societies.filter(s => {
     const matchesCategory = currentCategory === 'All' || s.category.toLowerCase() === currentCategory.toLowerCase();
-    
     const searchString = `${s.name} ${s.category} ${s.tagline} ${s.description}`.toLowerCase();
     const matchesSearch = searchString.includes(searchQuery.toLowerCase());
-    
     return matchesCategory && matchesSearch;
   });
 
-  // Update DOM Grid
   societiesGrid.innerHTML = '';
-  
+
   if (filtered.length === 0) {
     societiesGrid.style.display = 'none';
     emptyState.style.display = 'flex';
     return;
   }
-  
+
   societiesGrid.style.display = 'grid';
   emptyState.style.display = 'none';
 
@@ -181,21 +221,14 @@ function renderSocieties() {
       </div>
     `;
 
-    // Click handler to open Details drawer
-    card.addEventListener('click', () => {
-      openDrawer(s, 'details');
-    });
-
+    card.addEventListener('click', () => openDrawer(s, 'details'));
     societiesGrid.appendChild(card);
   });
 
-  // Re-run Lucide parser to render injected icons
-  if (window.lucide) {
-    window.lucide.createIcons();
-  }
+  if (window.lucide) window.lucide.createIcons();
 }
 
-// Overlay Drawer Management
+// ─── Drawer Management ──────────────────────────────────────────────────────
 function openDrawer(society, mode = 'details') {
   selectedSociety = society;
   drawerViewMode = mode;
@@ -217,13 +250,10 @@ function renderDrawerContent() {
     renderApplyFormView();
   }
 
-  // Refresh Lucide Icons
-  if (window.lucide) {
-    window.lucide.createIcons();
-  }
+  if (window.lucide) window.lucide.createIcons();
 }
 
-// Drawer: Render Society Details Panel
+// ─── Details View ───────────────────────────────────────────────────────────
 function renderDetailsView() {
   detailsDrawer.innerHTML = `
     <div class="drawer-header">
@@ -264,7 +294,6 @@ function renderDetailsView() {
     </div>
   `;
 
-  // Drawer Action Bindings
   document.getElementById('drawer-close-btn').addEventListener('click', closeDrawer);
   document.getElementById('drawer-apply-btn').addEventListener('click', () => {
     drawerViewMode = 'apply';
@@ -272,7 +301,7 @@ function renderDetailsView() {
   });
 }
 
-// Drawer: Render Application Form Panel
+// ─── Application Form View ──────────────────────────────────────────────────
 function renderApplyFormView() {
   detailsDrawer.innerHTML = `
     <div class="drawer-header">
@@ -328,12 +357,18 @@ function renderApplyFormView() {
         <span class="error-msg"><i data-lucide="alert-circle" style="width: 14px; height: 14px;"></i> <span class="error-text"></span></span>
       </div>
 
+      <!-- Server error banner (hidden by default) -->
+      <div id="server-error-banner" class="error-msg" style="display: none; background: rgba(var(--error-rgb), 0.08); padding: 12px 16px; border-radius: var(--radius-sm); border: 1px solid rgba(var(--error-rgb), 0.2);">
+        <i data-lucide="wifi-off" style="width: 14px; height: 14px;"></i>
+        <span class="error-text" id="server-error-text"></span>
+      </div>
+
       <div class="drawer-footer" style="padding-top: 16px;">
         <button type="button" class="btn btn-secondary" id="form-back-btn">
           <i data-lucide="chevron-left"></i>
           <span>Back</span>
         </button>
-        <button type="submit" class="btn btn-primary" style="flex-grow: 1;">
+        <button type="submit" class="btn btn-primary" id="submit-btn" style="flex-grow: 1;">
           <i data-lucide="send"></i>
           <span>Submit Application</span>
         </button>
@@ -341,7 +376,6 @@ function renderApplyFormView() {
     </form>
   `;
 
-  // Bind Form Actions
   document.getElementById('drawer-close-btn').addEventListener('click', closeDrawer);
   document.getElementById('form-back-btn').addEventListener('click', () => {
     drawerViewMode = 'details';
@@ -357,7 +391,7 @@ function renderApplyFormView() {
   });
 }
 
-// Inline Form Validation Handlers
+// ─── Inline Form Validation ─────────────────────────────────────────────────
 function setupFormValidation(form) {
   const inputs = {
     name: { el: document.getElementById('input-name'), validator: validator.validateName, group: document.getElementById('group-name') },
@@ -367,7 +401,6 @@ function setupFormValidation(form) {
     whyyou: { el: document.getElementById('input-whyyou'), validator: validator.validateWhyYou, group: document.getElementById('group-whyyou') }
   };
 
-  // Add validation triggers on blur and input change
   Object.keys(inputs).forEach(key => {
     const item = inputs[key];
     const triggerValidation = () => {
@@ -379,14 +412,16 @@ function setupFormValidation(form) {
         item.group.classList.remove('has-error');
       }
     };
-    
+
     item.el.addEventListener('blur', triggerValidation);
     item.el.addEventListener('input', triggerValidation);
   });
 }
 
-// Handle Final Form Submission
-function handleFormSubmit(form) {
+// ─── Form Submission (Dynamic API POST) ─────────────────────────────────────
+async function handleFormSubmit(form) {
+  if (isSubmitting) return; // Guard against double-clicks
+
   const values = {
     name: document.getElementById('input-name').value,
     year: document.getElementById('input-year').value,
@@ -395,7 +430,7 @@ function handleFormSubmit(form) {
     whyyou: document.getElementById('input-whyyou').value
   };
 
-  // Compile final errors
+  // Client-side validation
   const errors = {
     name: validator.validateName(values.name),
     year: validator.validateYear(values.year),
@@ -405,8 +440,7 @@ function handleFormSubmit(form) {
   };
 
   let hasErrors = false;
-  
-  // Highlight fields that fail validation
+
   Object.keys(errors).forEach(key => {
     const errorMsg = errors[key];
     const groupEl = document.getElementById(`group-${key}`);
@@ -420,43 +454,71 @@ function handleFormSubmit(form) {
   });
 
   if (hasErrors) {
-    // Scroll the first error element into view inside the drawer
     const firstError = detailsDrawer.querySelector('.has-error');
-    if (firstError) {
-      firstError.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    }
+    if (firstError) firstError.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     return;
   }
 
-  // Application Data compiles successfully (ready for Supabase migration!)
-  const applicationPayload = {
+  // Prepare payload for the backend
+  const payload = {
     societyId: selectedSociety.id,
-    societyName: selectedSociety.name,
-    ...values,
-    submittedAt: new Date().toISOString()
+    name: values.name.trim(),
+    year: values.year,
+    branch: values.branch.trim(),
+    role: values.role.trim(),
+    whyyou: values.whyyou.trim()
   };
 
-  // Requirements: log application details to the console
-  console.log("=== Recruitment Application Submitted ===");
-  console.log(applicationPayload);
-  console.log("=========================================");
+  // Set loading state on submit button
+  const submitBtn = document.getElementById('submit-btn');
+  const serverErrorBanner = document.getElementById('server-error-banner');
+  serverErrorBanner.style.display = 'none';
 
-  // Close Application drawer and trigger custom confirm dialog
-  closeDrawer();
-  
-  // Update Success dialogue card text dynamically
-  const textEl = document.getElementById('success-dialog-text');
-  textEl.innerHTML = `Hey <strong>${values.name}</strong>, your application to join <strong>${selectedSociety.name}</strong> as a <strong>${values.role}</strong> has been logged. Our recruitment coordinators will contact you shortly!`;
-  
-  // Refresh Lucide in the confirmation dialog
-  if (window.lucide) {
-    window.lucide.createIcons();
+  isSubmitting = true;
+  submitBtn.disabled = true;
+  submitBtn.innerHTML = `
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="animation: spin 1s linear infinite;">
+      <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+    </svg>
+    <span>Submitting…</span>
+  `;
+
+  try {
+    // POST to Render backend API
+    const result = await submitApplication(payload);
+
+    console.log('✅ Application submitted to backend:', result);
+
+    // Close drawer and show success dialog
+    closeDrawer();
+
+    const textEl = document.getElementById('success-dialog-text');
+    textEl.innerHTML = `Hey <strong>${values.name}</strong>, your application to join <strong>${selectedSociety.name}</strong> as a <strong>${values.role}</strong> has been saved successfully. Our recruitment coordinators will contact you shortly!`;
+
+    if (window.lucide) window.lucide.createIcons();
+    successDialog.classList.add('active');
+
+  } catch (err) {
+    console.error('❌ Failed to submit application:', err.message);
+
+    // Show inline server error banner
+    serverErrorBanner.style.display = 'flex';
+    document.getElementById('server-error-text').textContent = `Submission failed: ${err.message}. Please try again.`;
+
+    // Restore submit button
+    submitBtn.innerHTML = `
+      <i data-lucide="send"></i>
+      <span>Retry Submission</span>
+    `;
+    if (window.lucide) window.lucide.createIcons();
+
+  } finally {
+    isSubmitting = false;
+    submitBtn.disabled = false;
   }
-  
-  successDialog.classList.add('active');
 }
 
-// Recommendation Quiz Management
+// ─── Recommendation Quiz ────────────────────────────────────────────────────
 function openQuiz() {
   currentQuizQuestionIndex = 0;
   quizAnswers = [];
@@ -470,14 +532,13 @@ function closeQuiz() {
 
 function renderQuizContent() {
   quizOverlay.innerHTML = '';
-  
+
   const totalQuestions = quizQuestions.length;
-  
+
   if (currentQuizQuestionIndex < totalQuestions) {
-    // Render active question step
     const q = quizQuestions[currentQuizQuestionIndex];
     const progressPercent = ((currentQuizQuestionIndex) / totalQuestions) * 100;
-    
+
     const card = document.createElement('div');
     card.className = 'quiz-card';
     card.innerHTML = `
@@ -496,8 +557,7 @@ function renderQuizContent() {
         `).join('')}
       </div>
     `;
-    
-    // Bind option click listeners with slide transition effect
+
     card.querySelectorAll('.quiz-option-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         const optionIdx = parseInt(btn.dataset.index, 10);
@@ -506,13 +566,13 @@ function renderQuizContent() {
         renderQuizContent();
       });
     });
-    
+
     card.querySelector('#quiz-close-btn').addEventListener('click', closeQuiz);
     quizOverlay.appendChild(card);
   } else {
-    // Render results recommendation card
+    // Quiz uses the live societies array (from API) for recommendations
     const recommended = getRecommendation(quizAnswers);
-    
+
     const card = document.createElement('div');
     card.className = 'quiz-card';
     card.innerHTML = `
@@ -525,7 +585,7 @@ function renderQuizContent() {
           <p class="quiz-recommended-tagline">${recommended.tagline}</p>
         </div>
         <p class="drawer-body-text" style="font-size: 14px;">Based on your inputs, we highly recommend looking into ${recommended.name}. They align perfectly with your interests and aspirations.</p>
-        
+
         <div class="quiz-actions">
           <button class="btn btn-secondary" id="quiz-retry-btn">
             <i data-lucide="refresh-cw" style="width: 14px; height: 14px;"></i>
@@ -541,19 +601,16 @@ function renderQuizContent() {
         </button>
       </div>
     `;
-    
+
     card.querySelector('#quiz-retry-btn').addEventListener('click', openQuiz);
     card.querySelector('#quiz-results-close-btn').addEventListener('click', closeQuiz);
     card.querySelector('#quiz-apply-recommended-btn').addEventListener('click', () => {
       closeQuiz();
       openDrawer(recommended, 'apply');
     });
-    
+
     quizOverlay.appendChild(card);
   }
-  
-  // Refresh Lucide icons in Quiz
-  if (window.lucide) {
-    window.lucide.createIcons();
-  }
+
+  if (window.lucide) window.lucide.createIcons();
 }
