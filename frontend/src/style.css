@@ -542,7 +542,8 @@ body.light-mode .overlay {
   overflow-y: auto;
 }
 
-.drawer.active {
+.drawer.active,
+.overlay.active + .drawer {
   transform: translateX(0);
 }
 
