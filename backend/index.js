@@ -9,8 +9,9 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const USERS_FILE_PATH = path.join(__dirname, 'users.json');
+const APPLICATIONS_FILE_PATH = path.join(__dirname, 'applications.json');
 
-// File-based persistence helper for local mock DB fallback
+// File-based persistence helper for local mock DB fallback (Users)
 function loadUsersFromFile() {
   try {
     if (fs.existsSync(USERS_FILE_PATH)) {
@@ -27,6 +28,26 @@ function saveUsersToFile(users) {
     fs.writeFileSync(USERS_FILE_PATH, JSON.stringify(users, null, 2), 'utf8');
   } catch (err) {
     console.error("Error writing users file:", err);
+  }
+}
+
+// File-based persistence helper for local mock DB fallback (Applications)
+function loadApplicationsFromFile() {
+  try {
+    if (fs.existsSync(APPLICATIONS_FILE_PATH)) {
+      return JSON.parse(fs.readFileSync(APPLICATIONS_FILE_PATH, 'utf8'));
+    }
+  } catch (err) {
+    console.error("Error reading applications file:", err);
+  }
+  return [];
+}
+
+function saveApplicationsToFile(apps) {
+  try {
+    fs.writeFileSync(APPLICATIONS_FILE_PATH, JSON.stringify(apps, null, 2), 'utf8');
+  } catch (err) {
+    console.error("Error writing applications file:", err);
   }
 }
 
@@ -77,7 +98,65 @@ app.get('/api/societies', async (req, res) => {
   }
 });
 
-// POST /api/applications - Submit application to Supabase
+// GET /api/applications - Retrieve applications (optionally filtered by societyId)
+app.get('/api/applications', async (req, res) => {
+  try {
+    const { societyId } = req.query;
+    
+    // First, try loading locally
+    const localApps = loadApplicationsFromFile();
+    
+    // Filter locally if societyId is specified
+    const filteredApps = societyId
+      ? localApps.filter(app => app.societyId === societyId)
+      : localApps;
+      
+    // Attempt Supabase fetch if active
+    if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      try {
+        let query = supabase.from('applications').select('*');
+        if (societyId) {
+          query = query.eq('society_id', societyId);
+        }
+        const { data, error } = await query;
+        if (!error && data) {
+          // Normalize snake_case keys from DB to camelCase for the frontend
+          const apiApps = data.map(s => ({
+            id: s.id,
+            societyId: s.society_id,
+            name: s.name,
+            year: s.year,
+            branch: s.branch,
+            role: s.role,
+            whyyou: s.why_you,
+            status: s.status || 'pending',
+            submittedAt: s.created_at || new Date().toISOString()
+          }));
+          
+          // Merge API results into local users file if not present (simple sync)
+          apiApps.forEach(apiApp => {
+            const exists = localApps.some(l => l.id === apiApp.id);
+            if (!exists) {
+              localApps.push(apiApp);
+            }
+          });
+          saveApplicationsToFile(localApps);
+          
+          return res.json(apiApps);
+        }
+      } catch (dbErr) {
+        console.warn("Supabase fetch failed (returning local applications cache):", dbErr.message);
+      }
+    }
+    
+    res.json(filteredApps);
+  } catch (err) {
+    console.error("Internal Server Error in GET /api/applications:", err);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+// POST /api/applications - Submit application
 app.post('/api/applications', async (req, res) => {
   try {
     const { societyId, name, year, branch, role, whyyou } = req.body;
@@ -100,29 +179,108 @@ app.post('/api/applications', async (req, res) => {
       return res.status(400).json({ error: 'Explanation must be between 20 and 500 characters' });
     }
 
-    // Insert into applications table
-    const { data, error } = await supabase
-      .from('applications')
-      .insert([
-        { 
-          society_id: societyId, 
-          name: name.trim(), 
-          year: numYear, 
-          branch: branch.trim(), 
-          role: role.trim(), 
-          why_you: whyyou.trim() 
-        }
-      ])
-      .select();
+    const mockId = 'app_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 7);
 
-    if (error) {
-      console.error("Error inserting application into Supabase:", error);
-      return res.status(400).json({ error: error.message });
+    // Try inserting into Supabase applications table
+    let supabaseSuccess = false;
+    let finalId = mockId;
+    
+    if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      try {
+        const { data, error } = await supabase
+          .from('applications')
+          .insert([
+            { 
+              society_id: societyId, 
+              name: name.trim(), 
+              year: numYear, 
+              branch: branch.trim(), 
+              role: role.trim(), 
+              why_you: whyyou.trim(),
+              status: 'pending'
+            }
+          ])
+          .select();
+
+        if (!error && data && data.length > 0) {
+          supabaseSuccess = true;
+          finalId = data[0].id;
+        }
+      } catch (dbErr) {
+        console.warn("Supabase insert issue (syncing locally):", dbErr.message);
+      }
     }
 
-    res.status(201).json({ success: true, message: 'Application submitted successfully', data: data[0] });
+    // Always keep local applications.json in sync
+    const localApps = loadApplicationsFromFile();
+    const newApp = {
+      id: finalId,
+      societyId,
+      name: name.trim(),
+      year: numYear,
+      branch: branch.trim(),
+      role: role.trim(),
+      whyyou: whyyou.trim(),
+      status: 'pending',
+      submittedAt: new Date().toISOString()
+    };
+    localApps.push(newApp);
+    saveApplicationsToFile(localApps);
+
+    res.status(201).json({ success: true, message: 'Application submitted successfully', data: newApp });
   } catch (err) {
     console.error("Internal Server Error in POST /api/applications:", err);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+// POST /api/applications/status - Update application status (Approve/Reject)
+app.post('/api/applications/status', async (req, res) => {
+  try {
+    const { applicationId, status } = req.body;
+
+    if (!applicationId || !status) {
+      return res.status(400).json({ error: 'applicationId and status are required.' });
+    }
+
+    if (!['pending', 'approved', 'rejected'].includes(status)) {
+      return res.status(400).json({ error: 'Invalid status value. Must be pending, approved, or rejected.' });
+    }
+
+    const localApps = loadApplicationsFromFile();
+    const appIndex = localApps.findIndex(app => app.id === applicationId);
+
+    if (appIndex === -1) {
+      return res.status(404).json({ error: 'Application not found in database.' });
+    }
+
+    localApps[appIndex].status = status;
+    saveApplicationsToFile(localApps);
+
+    // Try updating Supabase
+    if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      try {
+        const { error } = await supabase
+          .from('applications')
+          .update({ status: status })
+          .eq('id', applicationId);
+          
+        if (error) {
+          console.warn("Supabase status update error:", error.message);
+        }
+      } catch (dbErr) {
+        console.warn("Supabase status update connection issue:", dbErr.message);
+      }
+    }
+
+    res.json({
+      success: true,
+      message: `Application status updated to ${status}`,
+      data: localApps[appIndex]
+    });
+
+  } catch (err) {
+    console.error("Internal Server Error in POST /api/applications/status:", err);
     res.status(500).json({ error: 'Internal Server Error' });
   }
 });
@@ -141,7 +299,7 @@ function checkPasswordStrength(p) {
 // POST /api/auth/signup - User registration
 app.post('/api/auth/signup', async (req, res) => {
   try {
-    const { name, email, phone, password } = req.body;
+    const { name, email, phone, password, role, society } = req.body;
 
     // Field checks
     if (!name || !email || !phone || !password) {
@@ -179,6 +337,13 @@ app.post('/api/auth/signup', async (req, res) => {
       return res.status(400).json({ error: 'Phone number is already registered.' });
     }
 
+    const userRole = role || 'student';
+    const userSociety = userRole === 'recruiter' ? society : null;
+
+    if (userRole === 'recruiter' && !userSociety) {
+      return res.status(400).json({ error: 'Recruiters must select their head society.' });
+    }
+
     // Try saving to Supabase if config is provided
     let supabaseSuccess = false;
     let savedUser = null;
@@ -192,7 +357,9 @@ app.post('/api/auth/signup', async (req, res) => {
               name: name.trim(), 
               email: email.trim().toLowerCase(), 
               phone: phone.trim(), 
-              password: password 
+              password: password,
+              role: userRole,
+              society: userSociety
             }
           ])
           .select();
@@ -215,6 +382,8 @@ app.post('/api/auth/signup', async (req, res) => {
       email: email.trim().toLowerCase(),
       phone: phone.trim(),
       password: password,
+      role: userRole,
+      society: userSociety,
       registeredAt: new Date().toISOString()
     };
     localUsers.push(newUser);
@@ -226,7 +395,9 @@ app.post('/api/auth/signup', async (req, res) => {
       user: {
         name: newUser.name,
         email: newUser.email,
-        phone: newUser.phone
+        phone: newUser.phone,
+        role: newUser.role,
+        society: newUser.society
       }
     });
 
@@ -239,16 +410,20 @@ app.post('/api/auth/signup', async (req, res) => {
 // POST /api/auth/signin - User login with email/phone
 app.post('/api/auth/signin', async (req, res) => {
   try {
-    const { identifier, password } = req.body;
+    const { identifier, password, role } = req.body;
 
     if (!identifier || !password) {
       return res.status(400).json({ error: 'Email/Phone and Password are required.' });
     }
 
+    const expectedRole = role || 'student';
+
     // First try local users file
     const localUsers = loadUsersFromFile();
     const matchedUser = localUsers.find(
-      u => (u.email.toLowerCase() === identifier.trim().toLowerCase() || u.phone === identifier.trim()) && u.password === password
+      u => (u.email.toLowerCase() === identifier.trim().toLowerCase() || u.phone === identifier.trim()) 
+        && u.password === password
+        && (u.role || 'student') === expectedRole
     );
 
     if (matchedUser) {
@@ -258,7 +433,9 @@ app.post('/api/auth/signin', async (req, res) => {
         user: {
           name: matchedUser.name,
           email: matchedUser.email,
-          phone: matchedUser.phone
+          phone: matchedUser.phone,
+          role: matchedUser.role || 'student',
+          society: matchedUser.society || null
         }
       });
     }
@@ -266,8 +443,7 @@ app.post('/api/auth/signin', async (req, res) => {
     // If local check fails, check Supabase as secondary
     if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
       try {
-        // Query by email
-        let query = supabase.from('users').select('*').eq('password', password);
+        let query = supabase.from('users').select('*').eq('password', password).eq('role', expectedRole);
         
         if (identifier.includes('@')) {
           query = query.eq('email', identifier.trim().toLowerCase());
@@ -287,6 +463,8 @@ app.post('/api/auth/signin', async (req, res) => {
               email: dbUser.email,
               phone: dbUser.phone,
               password: dbUser.password,
+              role: dbUser.role || 'student',
+              society: dbUser.society || null,
               registeredAt: dbUser.created_at || new Date().toISOString()
             });
             saveUsersToFile(localUsers);
@@ -298,7 +476,9 @@ app.post('/api/auth/signin', async (req, res) => {
             user: {
               name: dbUser.name,
               email: dbUser.email,
-              phone: dbUser.phone
+              phone: dbUser.phone,
+              role: dbUser.role || 'student',
+              society: dbUser.society || null
             }
           });
         }
@@ -307,8 +487,7 @@ app.post('/api/auth/signin', async (req, res) => {
       }
     }
 
-    // If no match anywhere
-    res.status(401).json({ error: 'Invalid email/phone number or password.' });
+    res.status(401).json({ error: `Invalid ${expectedRole} credentials or password.` });
 
   } catch (err) {
     console.error("Internal Server Error in POST /api/auth/signin:", err);

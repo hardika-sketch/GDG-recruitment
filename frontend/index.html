@@ -46,61 +46,67 @@
 
       <!-- Main Contents -->
       <main>
-        <!-- Hero Branding -->
-        <section class="hero-section">
-          <p class="hero-tagline">Elevate Your Campus Life</p>
-          <h2 class="hero-title">Discover Your Tribe</h2>
-          <p class="hero-subtitle">Join the technical pioneers, creative storytellers, or athletic champions. Explore student-led guilds and shape your campus legacy.</p>
-          
-          <!-- Search & Filters -->
-          <div class="controls-container">
-            <div class="search-wrapper">
-              <i data-lucide="search" class="search-icon-wrapper"></i>
-              <input type="text" id="search-bar" class="search-input" placeholder="Search by name, tags, description..." autocomplete="off" />
+        <div id="explorer-view">
+          <!-- Hero Branding -->
+          <section class="hero-section">
+            <p class="hero-tagline">Elevate Your Campus Life</p>
+            <h2 class="hero-title">Discover Your Tribe</h2>
+            <p class="hero-subtitle">Join the technical pioneers, creative storytellers, or athletic champions. Explore student-led guilds and shape your campus legacy.</p>
+            
+            <!-- Search & Filters -->
+            <div class="controls-container">
+              <div class="search-wrapper">
+                <i data-lucide="search" class="search-icon-wrapper"></i>
+                <input type="text" id="search-bar" class="search-input" placeholder="Search by name, tags, description..." autocomplete="off" />
+              </div>
+              <div class="filter-wrapper" id="filters-container">
+                <!-- Filter badges will be injected here -->
+              </div>
             </div>
-            <div class="filter-wrapper" id="filters-container">
-              <!-- Filter badges will be injected here -->
-            </div>
-          </div>
-        </section>
+          </section>
 
-        <!-- Society Grid Container -->
-        <section id="societies-section">
-          <div class="societies-grid" id="societies-grid">
-            <!-- Loading Skeletons by default -->
-            <div class="skeleton-card">
-              <div class="skeleton-item skeleton-icon"></div>
-              <div class="skeleton-item skeleton-title"></div>
-              <div class="skeleton-item skeleton-text-1"></div>
-              <div class="skeleton-item skeleton-text-2"></div>
-              <div class="skeleton-item skeleton-footer"></div>
+          <!-- Society Grid Container -->
+          <section id="societies-section">
+            <div class="societies-grid" id="societies-grid">
+              <!-- Loading Skeletons by default -->
+              <div class="skeleton-card">
+                <div class="skeleton-item skeleton-icon"></div>
+                <div class="skeleton-item skeleton-title"></div>
+                <div class="skeleton-item skeleton-text-1"></div>
+                <div class="skeleton-item skeleton-text-2"></div>
+                <div class="skeleton-item skeleton-footer"></div>
+              </div>
+              <div class="skeleton-card">
+                <div class="skeleton-item skeleton-icon"></div>
+                <div class="skeleton-item skeleton-title"></div>
+                <div class="skeleton-item skeleton-text-1"></div>
+                <div class="skeleton-item skeleton-text-2"></div>
+                <div class="skeleton-item skeleton-footer"></div>
+              </div>
+              <div class="skeleton-card">
+                <div class="skeleton-item skeleton-icon"></div>
+                <div class="skeleton-item skeleton-title"></div>
+                <div class="skeleton-item skeleton-text-1"></div>
+                <div class="skeleton-item skeleton-text-2"></div>
+                <div class="skeleton-item skeleton-footer"></div>
+              </div>
             </div>
-            <div class="skeleton-card">
-              <div class="skeleton-item skeleton-icon"></div>
-              <div class="skeleton-item skeleton-title"></div>
-              <div class="skeleton-item skeleton-text-1"></div>
-              <div class="skeleton-item skeleton-text-2"></div>
-              <div class="skeleton-item skeleton-footer"></div>
+            
+            <!-- Empty State (hidden by default) -->
+            <div id="empty-state" class="empty-state" style="display: none;">
+              <div class="empty-icon-wrapper">
+                <i data-lucide="search-x"></i>
+              </div>
+              <h3 class="empty-title">No Societies Found</h3>
+              <p class="empty-subtitle">We couldn't find any matches for your search or filter combination.</p>
+              <button id="clear-search-btn" class="btn btn-secondary">Clear Filters</button>
             </div>
-            <div class="skeleton-card">
-              <div class="skeleton-item skeleton-icon"></div>
-              <div class="skeleton-item skeleton-title"></div>
-              <div class="skeleton-item skeleton-text-1"></div>
-              <div class="skeleton-item skeleton-text-2"></div>
-              <div class="skeleton-item skeleton-footer"></div>
-            </div>
-          </div>
-          
-          <!-- Empty State (hidden by default) -->
-          <div id="empty-state" class="empty-state" style="display: none;">
-            <div class="empty-icon-wrapper">
-              <i data-lucide="search-x"></i>
-            </div>
-            <h3 class="empty-title">No Societies Found</h3>
-            <p class="empty-subtitle">We couldn't find any matches for your search or filter combination.</p>
-            <button id="clear-search-btn" class="btn btn-secondary">Clear Filters</button>
-          </div>
-        </section>
+          </section>
+        </div>
+
+        <div id="recruiter-view" style="display: none;">
+          <!-- Content will be dynamically rendered by JavaScript -->
+        </div>
       </main>
 
       <!-- Slide-over Drawer / Bottom Sheet for Details & Apply Form -->

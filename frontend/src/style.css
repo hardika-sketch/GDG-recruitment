@@ -1157,3 +1157,213 @@ body.light-mode .auth-overlay {
   background-color: rgba(0, 255, 102, 0.05);
 }
 
+/* Role Segment Control (Student/Recruiter toggles) */
+.segmented-control {
+  display: flex;
+  border: 1px solid var(--border-color);
+  background-color: var(--bg-secondary);
+  margin-bottom: 16px;
+  border-radius: var(--radius);
+}
+
+.segmented-control button {
+  flex: 1;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  padding: 10px 0;
+  cursor: pointer;
+  transition: all var(--transition);
+  outline: none;
+}
+
+.segmented-control button.active {
+  background-color: var(--accent-bg);
+  color: var(--accent-text);
+}
+
+.segmented-control button:not(.active):hover {
+  color: var(--text-primary);
+  background-color: var(--bg-tertiary);
+}
+
+/* Recruiter Dashboard View Styles */
+.dashboard-header {
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 24px;
+  margin-bottom: 32px;
+}
+
+.dashboard-tagline {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+
+.dashboard-title {
+  font-size: 32px;
+  font-weight: 800;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+.dashboard-subtitle {
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin-bottom: 32px;
+}
+
+.metric-card {
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.metric-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.metric-val {
+  font-size: 32px;
+  font-weight: 800;
+  font-family: var(--font-mono);
+}
+
+/* Recruiter Applications list */
+.recruiter-apps-section-title {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  text-transform: uppercase;
+  margin-bottom: 16px;
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 8px;
+}
+
+.recruiter-apps-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.recruiter-app-card {
+  border: 1px solid var(--border-color);
+  background-color: var(--bg-secondary);
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  position: relative;
+  transition: all var(--transition);
+}
+
+.recruiter-app-card:hover {
+  border-color: var(--border-hover);
+}
+
+.recruiter-app-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.recruiter-app-title {
+  font-size: 18px;
+  font-weight: 700;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+.recruiter-app-meta {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.status-badge {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  text-transform: uppercase;
+  border: 1px solid var(--border-color);
+  padding: 2px 8px;
+  display: inline-block;
+  white-space: nowrap;
+}
+
+.status-badge.status-pending {
+  color: var(--text-secondary);
+  border-color: var(--border-color);
+  background-color: rgba(255, 255, 255, 0.02);
+}
+
+.status-badge.status-approved {
+  color: var(--success);
+  border-color: var(--success);
+  background-color: rgba(0, 255, 102, 0.05);
+}
+
+.status-badge.status-rejected {
+  color: var(--error);
+  border-color: var(--error);
+  background-color: rgba(255, 51, 51, 0.05);
+}
+
+.recruiter-app-sop {
+  font-size: 13px;
+  line-height: 1.5;
+  background-color: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  padding: 16px;
+  font-style: italic;
+  color: var(--text-secondary);
+}
+
+.recruiter-app-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  border-top: 1px solid var(--border-color);
+  padding-top: 16px;
+}
+
+.btn-approve {
+  border-color: var(--success);
+  color: var(--success);
+}
+
+.btn-approve:hover {
+  background-color: rgba(0, 255, 102, 0.05);
+  border-color: var(--success);
+}
+
+.btn-reject {
+  border-color: var(--error);
+  color: var(--error);
+}
+
+.btn-reject:hover {
+  background-color: rgba(255, 51, 51, 0.05);
+  border-color: var(--error);
+}
+
+

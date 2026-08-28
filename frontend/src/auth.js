@@ -5,10 +5,12 @@ import {
   validatePhone, 
   validatePassword 
 } from './validation.js';
+import { societies } from './data.js';
 
 let apiBaseUrl = 'http://localhost:5000';
 let onAuthStateChange = null;
 let currentMode = 'signin'; // 'signin' or 'signup'
+let selectedRole = 'student'; // 'student' or 'recruiter'
 let currentUser = null;
 
 const STORAGE_USERS_KEY = 'se_local_users';
@@ -90,10 +92,12 @@ function updateHeaderButton() {
   
   if (currentUser) {
     authToggleBtn.classList.add('logged-in');
+    const isRecruiter = currentUser.role === 'recruiter';
+    const subText = isRecruiter ? `Recruiter: ${currentUser.name.split(' ')[0]}` : currentUser.name.split(' ')[0];
     authToggleBtn.title = `Logged in as ${currentUser.name} (Click to Sign Out)`;
     authToggleBtn.innerHTML = `
       <i data-lucide="log-out"></i>
-      <span>Log Out (${currentUser.name.split(' ')[0]})</span>
+      <span>Log Out (${subText})</span>
     `;
   } else {
     authToggleBtn.classList.remove('logged-in');
@@ -117,6 +121,7 @@ function logout() {
 
 function openAuthModal() {
   currentMode = 'signin';
+  selectedRole = 'student';
   const authOverlay = document.getElementById('auth-overlay');
   authOverlay.classList.add('active');
   renderForm();
@@ -132,6 +137,8 @@ function renderForm() {
   const authOverlay = document.getElementById('auth-overlay');
   if (!authOverlay) return;
 
+  const societyOptions = societies.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+
   if (currentMode === 'signin') {
     authOverlay.innerHTML = `
       <div class="auth-card">
@@ -141,6 +148,13 @@ function renderForm() {
             <i data-lucide="x"></i>
           </button>
         </div>
+        
+        <!-- Role toggle Segment control -->
+        <div class="segmented-control" id="auth-role-toggle">
+          <button type="button" class="${selectedRole === 'student' ? 'active' : ''}" data-role="student">Student</button>
+          <button type="button" class="${selectedRole === 'recruiter' ? 'active' : ''}" data-role="recruiter">Recruiter</button>
+        </div>
+
         <form id="auth-signin-form" class="auth-form" novalidate>
           <div class="form-group" id="grp-login-identifier">
             <label for="login-identifier" class="form-label">Email or Phone Number</label>
@@ -178,6 +192,13 @@ function renderForm() {
             <i data-lucide="x"></i>
           </button>
         </div>
+
+        <!-- Role toggle Segment control -->
+        <div class="segmented-control" id="auth-role-toggle">
+          <button type="button" class="${selectedRole === 'student' ? 'active' : ''}" data-role="student">Student</button>
+          <button type="button" class="${selectedRole === 'recruiter' ? 'active' : ''}" data-role="recruiter">Recruiter</button>
+        </div>
+
         <form id="auth-signup-form" class="auth-form" novalidate>
           <div class="form-group" id="grp-signup-name">
             <label for="signup-name" class="form-label">Full Name</label>
@@ -194,6 +215,15 @@ function renderForm() {
           <div class="form-group" id="grp-signup-phone">
             <label for="signup-phone" class="form-label">Phone Number</label>
             <input type="tel" id="signup-phone" class="form-input" placeholder="e.g. +919876543210" required />
+            <span class="error-msg"><i data-lucide="alert-circle" style="width: 14px; height: 14px;"></i> <span class="error-text"></span></span>
+          </div>
+
+          <div class="form-group" id="grp-signup-society" style="display: ${selectedRole === 'recruiter' ? 'flex' : 'none'};">
+            <label for="signup-society" class="form-label">Head of Society</label>
+            <select id="signup-society" class="form-select" required>
+              <option value="" disabled selected>Select Society</option>
+              ${societyOptions}
+            </select>
             <span class="error-msg"><i data-lucide="alert-circle" style="width: 14px; height: 14px;"></i> <span class="error-text"></span></span>
           </div>
 
@@ -254,6 +284,26 @@ function renderForm() {
 
   // Common bindings
   document.getElementById('auth-close-btn').addEventListener('click', closeAuthModal);
+  
+  // Segmented role switch binding
+  const roleToggle = document.getElementById('auth-role-toggle');
+  roleToggle.querySelectorAll('button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      roleToggle.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      selectedRole = btn.dataset.role;
+      
+      const societyGroup = document.getElementById('grp-signup-society');
+      if (societyGroup) {
+        if (selectedRole === 'recruiter') {
+          societyGroup.style.display = 'flex';
+        } else {
+          societyGroup.style.display = 'none';
+        }
+      }
+    });
+  });
+
   document.getElementById('auth-switch-btn').addEventListener('click', () => {
     currentMode = currentMode === 'signin' ? 'signup' : 'signin';
     renderForm();
@@ -326,7 +376,7 @@ async function handleSignIn(form) {
     const response = await fetch(`${apiBaseUrl}/api/auth/signin`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ identifier, password })
+      body: JSON.stringify({ identifier, password, role: selectedRole })
     });
 
     const result = await response.json();
@@ -342,24 +392,24 @@ async function handleSignIn(form) {
     // Check local fallback
     const localUsers = getLocalUsers();
     const matchedUser = localUsers.find(
-      u => (u.email.toLowerCase() === identifier.toLowerCase() || u.phone === identifier) && u.password === password
+      u => (u.email.toLowerCase() === identifier.toLowerCase() || u.phone === identifier) 
+        && u.password === password 
+        && (u.role || 'student') === selectedRole
     );
 
     if (matchedUser) {
-      // Mock log in success
-      const userPayload = {
+      loginUser({
         name: matchedUser.name,
         email: matchedUser.email,
-        phone: matchedUser.phone
-      };
-      loginUser(userPayload);
+        phone: matchedUser.phone,
+        role: matchedUser.role || 'student',
+        society: matchedUser.society || null
+      });
       closeAuthModal();
     } else {
       // Show credentials mismatch error
       errorBanner.style.display = 'flex';
-      errorText.textContent = err.message.includes('Fetch') || err.message.includes('Failed to fetch') 
-        ? 'Invalid email/phone number or password.' 
-        : err.message;
+      errorText.textContent = `Invalid ${selectedRole} credentials or password.`;
       setLoadingState(submitBtn, false, 'Sign In');
     }
   }
@@ -370,6 +420,9 @@ async function handleSignUp(form) {
   const email = document.getElementById('signup-email').value.trim();
   const phone = document.getElementById('signup-phone').value.trim();
   const password = document.getElementById('signup-password').value;
+  const societySelect = document.getElementById('signup-society');
+  const society = selectedRole === 'recruiter' ? (societySelect ? societySelect.value : '') : null;
+  
   const errorBanner = document.getElementById('auth-error-banner');
   const errorText = document.getElementById('auth-error-text');
   const submitBtn = document.getElementById('auth-submit-btn');
@@ -396,11 +449,18 @@ async function handleSignUp(form) {
     }
   });
 
+  if (selectedRole === 'recruiter' && !society) {
+    showInputError('grp-signup-society', 'Recruiters must select their head society.');
+    hasErrors = true;
+  } else if (selectedRole === 'recruiter') {
+    hideInputError('grp-signup-society');
+  }
+
   if (hasErrors) return;
 
   setLoadingState(submitBtn, true, 'Registering...');
 
-  const signupPayload = { name, email, phone, password };
+  const signupPayload = { name, email, phone, password, role: selectedRole, society };
 
   try {
     const response = await fetch(`${apiBaseUrl}/api/auth/signup`, {
@@ -417,7 +477,7 @@ async function handleSignUp(form) {
     // Successfully saved on backend, sync locally too
     saveLocalUser(signupPayload);
     
-    loginUser({ name, email, phone });
+    loginUser({ name, email, phone, role: selectedRole, society });
     closeAuthModal();
   } catch (err) {
     console.warn('Backend registration failed, saving locally:', err.message);
@@ -441,7 +501,7 @@ async function handleSignUp(form) {
 
     // Save and log in locally
     saveLocalUser(signupPayload);
-    loginUser({ name, email, phone });
+    loginUser({ name, email, phone, role: selectedRole, society });
     closeAuthModal();
   }
 }
