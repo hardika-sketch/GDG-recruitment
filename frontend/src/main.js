@@ -2,6 +2,7 @@ import './style.css';
 import { societies as fallbackSocieties } from './data.js';
 import { quizQuestions, getRecommendation } from './quiz.js';
 import * as validator from './validation.js';
+import { initAuth, getCurrentUser } from './auth.js';
 
 // ─── API Configuration ──────────────────────────────────────────────────────
 // In Vite production builds (Vercel), this reads from the VITE_API_URL env var.
@@ -68,6 +69,11 @@ window.addEventListener('DOMContentLoaded', async () => {
   }
 
   setupEventListeners();
+
+  // Initialize Auth
+  initAuth(API_BASE_URL, (user) => {
+    console.log('Auth state initialized/changed:', user);
+  });
 
   // Fetch societies from backend API dynamically
   await loadSocieties();
@@ -364,6 +370,9 @@ function renderDetailsView() {
 
 // ─── Application Form View ──────────────────────────────────────────────────
 function renderApplyFormView() {
+  const loggedInUser = getCurrentUser();
+  const defaultName = loggedInUser ? loggedInUser.name : '';
+
   detailsDrawer.innerHTML = `
     <div class="drawer-header">
       <div class="drawer-title-group">
@@ -379,7 +388,7 @@ function renderApplyFormView() {
     <form id="apply-form" class="application-form-container" novalidate>
       <div class="form-group" id="group-name">
         <label for="input-name" class="form-label">Full Name</label>
-        <input type="text" id="input-name" class="form-input" placeholder="e.g. John Doe" required />
+        <input type="text" id="input-name" class="form-input" placeholder="e.g. John Doe" value="${defaultName}" required />
         <span class="error-msg"><i data-lucide="alert-circle" style="width: 14px; height: 14px;"></i> <span class="error-text"></span></span>
       </div>
 

@@ -57,3 +57,52 @@ export function validateWhyYou(whyYou) {
   }
   return null;
 }
+
+export function validateEmail(email) {
+  if (!email || email.trim().length === 0) {
+    return "Email is required.";
+  }
+  // Standard email validation regex
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email.trim())) {
+    return "Please enter a valid email address.";
+  }
+  return null;
+}
+
+export function validatePhone(phone) {
+  if (!phone || phone.trim().length === 0) {
+    return "Phone number is required.";
+  }
+  // Standard phone check (digits, spaces, hyphens, plus sign)
+  const phoneRegex = /^\+?[0-9\s\-]{10,15}$/;
+  if (!phoneRegex.test(phone.trim())) {
+    return "Please enter a valid phone number (at least 10 digits).";
+  }
+  return null;
+}
+
+export function checkPasswordCriteria(password) {
+  const p = password || "";
+  return {
+    minLength: p.length >= 8,
+    hasUpper: /[A-Z]/.test(p),
+    hasLower: /[a-z]/.test(p),
+    hasNumber: /[0-9]/.test(p),
+    hasSpecial: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~`]/.test(p)
+  };
+}
+
+export function validatePassword(password) {
+  if (!password) {
+    return "Password is required.";
+  }
+  const criteria = checkPasswordCriteria(password);
+  if (!criteria.minLength) return "Password must be at least 8 characters long.";
+  if (!criteria.hasUpper) return "Password must contain at least one uppercase letter.";
+  if (!criteria.hasLower) return "Password must contain at least one lowercase letter.";
+  if (!criteria.hasNumber) return "Password must contain at least one number.";
+  if (!criteria.hasSpecial) return "Password must contain at least one special character.";
+  return null;
+}
+
