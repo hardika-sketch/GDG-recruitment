@@ -95,16 +95,20 @@ async function loadSocieties() {
     const data = await response.json();
 
     // Supabase returns snake_case columns; normalize to camelCase
-    societies = data.map(s => ({
-      id: s.id,
-      name: s.name,
-      category: s.category,
-      tagline: s.tagline,
-      icon: s.icon,
-      description: s.description,
-      criteria: s.criteria,
-      roles: s.roles
-    }));
+    societies = data.map(s => {
+      const fallback = fallbackSocieties.find(f => f.id === s.id);
+      return {
+        id: s.id,
+        name: s.name,
+        category: s.category,
+        tagline: s.tagline,
+        icon: s.icon,
+        description: s.description,
+        criteria: s.criteria,
+        roles: s.roles,
+        customFields: fallback ? fallback.customFields : []
+      };
+    });
 
     console.log(`✅ Loaded ${societies.length} societies from API`);
   } catch (err) {
@@ -394,6 +398,111 @@ function renderDetailsView() {
   }
 }
 
+function renderCustomFieldsHTML(fields) {
+  if (!fields || fields.length === 0) return '';
+  
+  return fields.map(field => {
+    const requiredAttr = field.required ? 'required' : '';
+    const fieldId = `custom-input-${field.id}`;
+    const groupId = `group-custom-${field.id}`;
+    
+    let inputHTML = '';
+    
+    if (field.type === 'text' || field.type === 'url') {
+      inputHTML = `<input type="${field.type === 'url' ? 'url' : 'text'}" id="${fieldId}" name="${field.id}" class="form-input" placeholder="${field.placeholder || ''}" ${requiredAttr} />`;
+    } else if (field.type === 'textarea') {
+      inputHTML = `<textarea id="${fieldId}" name="${field.id}" class="form-textarea" placeholder="${field.placeholder || ''}" ${requiredAttr}></textarea>`;
+    } else if (field.type === 'select') {
+      inputHTML = `
+        <select id="${fieldId}" name="${field.id}" class="form-select" ${requiredAttr}>
+          <option value="" disabled selected>${field.placeholder || 'Select Option'}</option>
+          ${field.options.map(opt => `<option value="${opt}">${opt}</option>`).join('')}
+        </select>
+      `;
+    } else if (field.type === 'checkbox-group') {
+      inputHTML = `
+        <div class="checkbox-options-list">
+          ${field.options.map((opt, idx) => `
+            <label class="checkbox-option">
+              <input type="checkbox" name="${field.id}" value="${opt}" />
+              <span>${opt}</span>
+            </label>
+          `).join('')}
+        </div>
+      `;
+    } else if (field.type === 'radio-group') {
+      inputHTML = `
+        <div class="radio-options-list">
+          ${field.options.map((opt, idx) => `
+            <label class="radio-option">
+              <input type="radio" name="${field.id}" value="${opt}" />
+              <span>${opt}</span>
+            </label>
+          `).join('')}
+        </div>
+      `;
+    }
+    
+    return `
+      <div class="form-group custom-field-group" id="${groupId}" data-field-id="${field.id}" data-field-type="${field.type}" data-field-required="${field.required ? 'true' : 'false'}" data-field-label="${field.label}">
+        <label class="form-label">${field.label}${field.required ? ' *' : ''}</label>
+        ${inputHTML}
+        <span class="error-msg"><i data-lucide="alert-circle" style="width: 14px; height: 14px;"></i> <span class="error-text"></span></span>
+      </div>
+    `;
+  }).join('');
+}
+
+function validateCustomField(group, type, required, label) {
+  if (type === 'text' || type === 'textarea') {
+    const el = group.querySelector('input, textarea');
+    const val = el ? el.value.trim() : '';
+    if (required && val.length === 0) {
+      return `${label} is required.`;
+    }
+    return null;
+  }
+  
+  if (type === 'url') {
+    const el = group.querySelector('input');
+    const val = el ? el.value.trim() : '';
+    if (required && val.length === 0) {
+      return `${label} is required.`;
+    }
+    if (val.length > 0 && !/^https?:\/\/[^\s$.?#].[^\s]*$/i.test(val)) {
+      return `Please enter a valid URL (starting with http:// or https://).`;
+    }
+    return null;
+  }
+  
+  if (type === 'select') {
+    const el = group.querySelector('select');
+    const val = el ? el.value : '';
+    if (required && (!val || val === "")) {
+      return `Please select an option for ${label}.`;
+    }
+    return null;
+  }
+  
+  if (type === 'checkbox-group') {
+    const checked = Array.from(group.querySelectorAll('input[type="checkbox"]:checked')).map(cb => cb.value);
+    if (required && checked.length === 0) {
+      return `Please select at least one option for ${label}.`;
+    }
+    return null;
+  }
+  
+  if (type === 'radio-group') {
+    const checked = group.querySelector('input[type="radio"]:checked');
+    if (required && !checked) {
+      return `Please select an option for ${label}.`;
+    }
+    return null;
+  }
+  
+  return null;
+}
+
 // ─── Application Form View ──────────────────────────────────────────────────
 function renderApplyFormView() {
   const loggedInUser = getCurrentUser();
@@ -445,6 +554,11 @@ function renderApplyFormView() {
           ${selectedSociety.roles.map(role => `<option value="${role}">${role}</option>`).join('')}
         </select>
         <span class="error-msg"><i data-lucide="alert-circle" style="width: 14px; height: 14px;"></i> <span class="error-text"></span></span>
+      </div>
+
+      <!-- Dynamic Custom Fields -->
+      <div id="custom-fields-container">
+        ${renderCustomFieldsHTML(selectedSociety.customFields || [])}
       </div>
 
       <div class="form-group" id="group-whyyou">
@@ -512,6 +626,55 @@ function setupFormValidation(form) {
     item.el.addEventListener('blur', triggerValidation);
     item.el.addEventListener('input', triggerValidation);
   });
+
+  // Dynamic Custom Fields Validation
+  const customGroups = form.querySelectorAll('.custom-field-group');
+  customGroups.forEach(group => {
+    const fieldId = group.dataset.fieldId;
+    const fieldType = group.dataset.fieldType;
+    const isRequired = group.dataset.fieldRequired === 'true';
+    const label = group.dataset.fieldLabel;
+
+    const triggerCustomValidation = () => {
+      const error = validateCustomField(group, fieldType, isRequired, label);
+      if (error) {
+        group.classList.add('has-error');
+        group.querySelector('.error-text').textContent = error;
+      } else {
+        group.classList.remove('has-error');
+      }
+    };
+
+    if (fieldType === 'text' || fieldType === 'url') {
+      const el = group.querySelector('.form-input');
+      if (el) {
+        el.addEventListener('blur', triggerCustomValidation);
+        el.addEventListener('input', triggerCustomValidation);
+      }
+    } else if (fieldType === 'textarea') {
+      const el = group.querySelector('.form-textarea');
+      if (el) {
+        el.addEventListener('blur', triggerCustomValidation);
+        el.addEventListener('input', triggerCustomValidation);
+      }
+    } else if (fieldType === 'select') {
+      const el = group.querySelector('.form-select');
+      if (el) {
+        el.addEventListener('change', triggerCustomValidation);
+        el.addEventListener('blur', triggerCustomValidation);
+      }
+    } else if (fieldType === 'checkbox-group') {
+      const checkboxes = group.querySelectorAll('input[type="checkbox"]');
+      checkboxes.forEach(cb => {
+        cb.addEventListener('change', triggerCustomValidation);
+      });
+    } else if (fieldType === 'radio-group') {
+      const radios = group.querySelectorAll('input[type="radio"]');
+      radios.forEach(r => {
+        r.addEventListener('change', triggerCustomValidation);
+      });
+    }
+  });
 }
 
 // ─── Form Submission (Dynamic API POST) ─────────────────────────────────────
@@ -549,7 +712,46 @@ async function handleFormSubmit(form) {
     }
   });
 
-  if (hasErrors) {
+  // Collect and validate custom fields
+  const customFieldsData = {};
+  const customGroups = form.querySelectorAll('.custom-field-group');
+  let hasCustomErrors = false;
+
+  customGroups.forEach(group => {
+    const fieldId = group.dataset.fieldId;
+    const fieldType = group.dataset.fieldType;
+    const isRequired = group.dataset.fieldRequired === 'true';
+    const label = group.dataset.fieldLabel;
+
+    let val = null;
+    if (fieldType === 'text' || fieldType === 'url') {
+      const el = group.querySelector('input');
+      val = el ? el.value.trim() : '';
+    } else if (fieldType === 'textarea') {
+      const el = group.querySelector('textarea');
+      val = el ? el.value.trim() : '';
+    } else if (fieldType === 'select') {
+      const el = group.querySelector('select');
+      val = el ? el.value : '';
+    } else if (fieldType === 'checkbox-group') {
+      val = Array.from(group.querySelectorAll('input[type="checkbox"]:checked')).map(cb => cb.value);
+    } else if (fieldType === 'radio-group') {
+      const checked = group.querySelector('input[type="radio"]:checked');
+      val = checked ? checked.value : '';
+    }
+
+    const error = validateCustomField(group, fieldType, isRequired, label);
+    if (error) {
+      hasCustomErrors = true;
+      group.classList.add('has-error');
+      group.querySelector('.error-text').textContent = error;
+    } else {
+      group.classList.remove('has-error');
+      customFieldsData[label] = val;
+    }
+  });
+
+  if (hasErrors || hasCustomErrors) {
     const firstError = detailsDrawer.querySelector('.has-error');
     if (firstError) firstError.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     return;
@@ -562,7 +764,8 @@ async function handleFormSubmit(form) {
     year: values.year,
     branch: values.branch.trim(),
     role: values.role.trim(),
-    whyyou: values.whyyou.trim()
+    whyyou: values.whyyou.trim(),
+    additionalFields: customFieldsData
   };
 
   // Set loading state on submit button
@@ -797,6 +1000,12 @@ async function renderRecordsView() {
                   <span class="record-details-val"><strong>${rec.name}</strong> (Year ${rec.year}, ${rec.branch})</span>
                   <span class="record-details-label">Role:</span>
                   <span class="record-details-val">${rec.role}</span>
+                  ${rec.additionalFields && Object.keys(rec.additionalFields).length > 0 ? 
+                    Object.entries(rec.additionalFields).map(([key, val]) => `
+                      <span class="record-details-label">${key}:</span>
+                      <span class="record-details-val">${Array.isArray(val) ? val.join(', ') : val}</span>
+                    `).join('') : ''
+                  }
                   <span class="record-details-label">SOP:</span>
                   <span class="record-details-val-sop">"${rec.whyyou}"</span>
                   <span class="record-details-label">Submitted:</span>
@@ -930,6 +1139,7 @@ async function renderRecruiterDashboard(user) {
         branch: lr.branch,
         role: lr.role,
         whyyou: lr.whyyou,
+        additionalFields: lr.additionalFields,
         status: lr.status || 'pending',
         submittedAt: lr.submittedAt
       });
@@ -974,6 +1184,16 @@ async function renderRecruiterDashboard(user) {
               </div>
               <span class="status-badge ${statusClass}">${statusLabel}</span>
             </div>
+            ${app.additionalFields && Object.keys(app.additionalFields).length > 0 ? `
+              <div class="recruiter-app-additional-fields">
+                ${Object.entries(app.additionalFields).map(([key, val]) => `
+                  <div class="app-field-item">
+                    <span class="app-field-label">${key}</span>
+                    <span class="app-field-value">${Array.isArray(val) ? val.join(', ') : val}</span>
+                  </div>
+                `).join('')}
+              </div>
+            ` : ''}
             <div class="recruiter-app-sop">"${app.whyyou}"</div>
             ${showActions ? `
               <div class="recruiter-app-actions">

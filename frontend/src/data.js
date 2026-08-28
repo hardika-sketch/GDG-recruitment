@@ -13,6 +13,29 @@ export const societies = [
       "Cloud & DevOps Engineer",
       "Technical Content Writer",
       "Community Manager"
+    ],
+    customFields: [
+      {
+        id: "languages",
+        label: "Programming Languages",
+        type: "checkbox-group",
+        options: ["Python", "JavaScript/TypeScript", "C++", "Java", "Go", "Rust", "Swift/Kotlin"],
+        required: true
+      },
+      {
+        id: "github",
+        label: "GitHub / Portfolio Link",
+        type: "url",
+        placeholder: "https://github.com/username",
+        required: true
+      },
+      {
+        id: "contributions",
+        label: "Prior Open Source or Hackathon Experience",
+        type: "radio-group",
+        options: ["Yes", "No"],
+        required: true
+      }
     ]
   },
   {
@@ -29,6 +52,29 @@ export const societies = [
       "Social Media Manager",
       "PR & Outreach Coordinator",
       "Podcast Host"
+    ],
+    customFields: [
+      {
+        id: "portfolioLink",
+        label: "Portfolio / Sample Work Link",
+        type: "url",
+        placeholder: "e.g. Google Drive link or Behance/Medium",
+        required: true
+      },
+      {
+        id: "pieceType",
+        label: "Type of Portfolio Piece Submitted",
+        type: "select",
+        options: ["Article / Writing Sample", "Video Script / Storyboard", "Social Media Campaign Mock-up", "PR / Outreach Plan", "Other"],
+        required: true
+      },
+      {
+        id: "tools",
+        label: "Experienced Content Creation Tools",
+        type: "checkbox-group",
+        options: ["Canva", "Adobe Premiere Pro", "WordPress", "Adobe Photoshop / Illustrator", "Figma", "DaVinci Resolve", "Audacity / Audition"],
+        required: false
+      }
     ]
   },
   {
@@ -45,6 +91,22 @@ export const societies = [
       "Drone Pilot & Systems Architect",
       "Software Integration Developer",
       "Operations & Sponsorship Head"
+    ],
+    customFields: [
+      {
+        id: "domain",
+        label: "Primary Domain of Interest",
+        type: "select",
+        options: ["Embedded Systems (Arduino/Pi)", "CAD Modeling (SolidWorks/Fusion 360)", "Robotics Operating System (ROS)", "Hardware / Circuit Assembly"],
+        required: true
+      },
+      {
+        id: "hardwareExp",
+        label: "Describe your hands-on hardware/electronics projects",
+        type: "textarea",
+        placeholder: "Mention sensors, microcontrollers, CAD models or mechanical assemblies you have worked on...",
+        required: true
+      }
     ]
   },
   {
@@ -61,6 +123,36 @@ export const societies = [
       "Event Coverage Coordinator",
       "Exhibition Curator",
       "Social Media Visual Lead"
+    ],
+    customFields: [
+      {
+        id: "photographyLink",
+        label: "Link to Photography Portfolio",
+        type: "url",
+        placeholder: "Google Drive, Instagram, or Flickr link",
+        required: true
+      },
+      {
+        id: "primaryDevice",
+        label: "Primary Device for Photography",
+        type: "select",
+        options: ["DSLR / Mirrorless Camera", "Smartphone Camera", "Film Camera / Analog", "Other"],
+        required: true
+      },
+      {
+        id: "genres",
+        label: "Preferred Genres of Photography",
+        type: "checkbox-group",
+        options: ["Portraits", "Landscape / Nature", "Street / Candid", "Macro", "Event Coverage", "Wildlife"],
+        required: true
+      },
+      {
+        id: "software",
+        label: "Editing Software Proficiency",
+        type: "checkbox-group",
+        options: ["Adobe Lightroom", "Adobe Photoshop", "Mobile Apps (Snapseed / VSCO / Lightroom Mobile)", "None / Shoot RAW"],
+        required: false
+      }
     ]
   },
   {
@@ -77,6 +169,29 @@ export const societies = [
       "CP Mentor & Trainer",
       "Editorial Writer",
       "Platform & Infrastructure Lead"
+    ],
+    customFields: [
+      {
+        id: "cpLanguage",
+        label: "Preferred CP Language",
+        type: "select",
+        options: ["C++", "Java", "Python", "Other"],
+        required: true
+      },
+      {
+        id: "codeforces",
+        label: "Codeforces Username / Profile Link",
+        type: "text",
+        placeholder: "e.g. tourist (or N/A)",
+        required: true
+      },
+      {
+        id: "leetcode",
+        label: "LeetCode / CodeChef Profile Link",
+        type: "text",
+        placeholder: "e.g. leetcode.com/username (or N/A)",
+        required: true
+      }
     ]
   },
   {
@@ -93,6 +208,29 @@ export const societies = [
       "Motion Graphics Artist",
       "Brand Identity Lead",
       "Design System Architect"
+    ],
+    customFields: [
+      {
+        id: "designPortfolio",
+        label: "Design Portfolio Link",
+        type: "url",
+        placeholder: "Behance, Dribbble, Figma, Google Drive, etc.",
+        required: true
+      },
+      {
+        id: "software",
+        label: "Primary Design Software Used",
+        type: "checkbox-group",
+        options: ["Figma", "Adobe Illustrator", "Adobe Photoshop", "Blender", "Adobe After Effects", "Canva", "Other"],
+        required: true
+      },
+      {
+        id: "interests",
+        label: "Areas of Design Interest",
+        type: "checkbox-group",
+        options: ["UI/UX Design", "Graphic / Poster Design", "Motion Graphics", "Branding & Identity", "3D Modeling & Rendering", "Illustration"],
+        required: true
+      }
     ]
   },
   {
@@ -109,6 +247,29 @@ export const societies = [
       "Stage & Set Designer",
       "Sound & Lighting Technician",
       "Production Manager"
+    ],
+    customFields: [
+      {
+        id: "theatreRole",
+        label: "Audition Category Preference",
+        type: "select",
+        options: ["On-Stage Performer / Actor", "Backstage / Production Crew", "Both On-Stage and Backstage"],
+        required: true
+      },
+      {
+        id: "backstageSkills",
+        label: "Specific Backstage / Technical Skills (if interested)",
+        type: "checkbox-group",
+        options: ["Scriptwriting / Adapting", "Direction / Assist Direction", "Stage Design / Scenography", "Sound Design & Engineering", "Light Design & Console Operation", "Costume, Makeup & Styling", "Production Management / PR"],
+        required: false
+      },
+      {
+        id: "theatreExp",
+        label: "Describe prior acting, writing, or backstage experience",
+        type: "textarea",
+        placeholder: "Mention school plays, street plays, voice-overs, public speaking, or set construction. If none, write 'None - eager to learn!'",
+        required: true
+      }
     ]
   },
   {
@@ -125,6 +286,36 @@ export const societies = [
       "Music Composer & Arranger",
       "Sound Engineer",
       "Event & Gig Coordinator"
+    ],
+    customFields: [
+      {
+        id: "musicCategory",
+        label: "Performance Category",
+        type: "select",
+        options: ["Vocalist (Indian Classical / Light Music / Western)", "Instrumentalist (Guitar / Keys / Drums / Violin, etc.)", "Music Composer / Beatmaker / Producer", "Sound Engineer / Live Sound Coordinator", "Other"],
+        required: true
+      },
+      {
+        id: "instrumentsDetails",
+        label: "Instruments Played / Vocal Range",
+        type: "text",
+        placeholder: "e.g. Acoustic Guitar (3 years), Bass, or Soprano vocal range",
+        required: true
+      },
+      {
+        id: "performanceClip",
+        label: "Link to Audio/Video Performance Clip",
+        type: "url",
+        placeholder: "Google Drive, YouTube, or SoundCloud link",
+        required: true
+      },
+      {
+        id: "theoryKnowledge",
+        label: "Knowledge of Music Theory",
+        type: "radio-group",
+        options: ["None / Self-taught by ear", "Basic (read notes/chords)", "Intermediate (scales, keys, rhythm signatures)", "Advanced (formal classical training / sheets)"],
+        required: true
+      }
     ]
   },
   {
@@ -141,6 +332,29 @@ export const societies = [
       "Freestyle Battle Lead",
       "Costume & Visual Director",
       "Practice Session Coordinator"
+    ],
+    customFields: [
+      {
+        id: "danceStyles",
+        label: "Dance Styles Experienced In",
+        type: "checkbox-group",
+        options: ["Hip-Hop / Urban", "Contemporary / Ballet", "Popping & Locking", "Waacking / Whacking", "Freestyle / Krump", "Bollywood & Folk", "Classical (Kathak/Bharatnatyam/etc.)", "Other"],
+        required: true
+      },
+      {
+        id: "auditionClip",
+        label: "Link to Choreography/Freestyle Video Clip",
+        type: "url",
+        placeholder: "Google Drive, YouTube, Instagram Reels, or Dropbox link",
+        required: true
+      },
+      {
+        id: "crewExp",
+        label: "Prior dance training or crew experience?",
+        type: "radio-group",
+        options: ["Yes", "No"],
+        required: true
+      }
     ]
   },
   {
@@ -157,6 +371,29 @@ export const societies = [
       "Exhibition Curator",
       "Digital Art Specialist",
       "Workshop Facilitator"
+    ],
+    customFields: [
+      {
+        id: "artPortfolio",
+        label: "Art Portfolio Link",
+        type: "url",
+        placeholder: "Google Drive, Instagram art page, ArtStation, Behance",
+        required: true
+      },
+      {
+        id: "mediums",
+        label: "Preferred Art Mediums",
+        type: "checkbox-group",
+        options: ["Pencil / Charcoal Sketching", "Watercolor Painting", "Acrylic / Oil Painting", "Digital Art (Procreate/Photoshop)", "Sculptures & Clay Modelling", "Mixed Media", "Other"],
+        required: true
+      },
+      {
+        id: "muralProject",
+        label: "Willingness to participate in campus mural projects?",
+        type: "radio-group",
+        options: ["Yes, highly interested", "Maybe / Depends on project", "No, prefer solo/canvas painting"],
+        required: true
+      }
     ]
   }
 ];

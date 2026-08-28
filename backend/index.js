@@ -121,17 +121,38 @@ app.get('/api/applications', async (req, res) => {
         const { data, error } = await query;
         if (!error && data) {
           // Normalize snake_case keys from DB to camelCase for the frontend
-          const apiApps = data.map(s => ({
-            id: s.id,
-            societyId: s.society_id,
-            name: s.name,
-            year: s.year,
-            branch: s.branch,
-            role: s.role,
-            whyyou: s.why_you,
-            status: s.status || 'pending',
-            submittedAt: s.created_at || new Date().toISOString()
-          }));
+          const apiApps = data.map(s => {
+            let parsedWhyYou = s.why_you || '';
+            let additionalFields = {};
+            
+            if (parsedWhyYou.includes('\n\nStatement of Purpose:\n')) {
+              const parts = parsedWhyYou.split('\n\nStatement of Purpose:\n');
+              const fieldsPart = parts[0];
+              parsedWhyYou = parts[1];
+              
+              fieldsPart.split('\n').forEach(line => {
+                const colonIdx = line.indexOf(':');
+                if (colonIdx > -1) {
+                  const key = line.slice(0, colonIdx).trim();
+                  const val = line.slice(colonIdx + 1).trim();
+                  additionalFields[key] = val;
+                }
+              });
+            }
+
+            return {
+              id: s.id,
+              societyId: s.society_id,
+              name: s.name,
+              year: s.year,
+              branch: s.branch,
+              role: s.role,
+              whyyou: parsedWhyYou,
+              additionalFields,
+              status: s.status || 'pending',
+              submittedAt: s.created_at || new Date().toISOString()
+            };
+          });
           
           // Merge API results into local users file if not present (simple sync)
           apiApps.forEach(apiApp => {
@@ -159,7 +180,7 @@ app.get('/api/applications', async (req, res) => {
 // POST /api/applications - Submit application
 app.post('/api/applications', async (req, res) => {
   try {
-    const { societyId, name, year, branch, role, whyyou } = req.body;
+    const { societyId, name, year, branch, role, whyyou, additionalFields } = req.body;
     
     // Server-side validation checks
     if (!societyId || !name || !year || !branch || !role || !whyyou) {
@@ -185,6 +206,14 @@ app.post('/api/applications', async (req, res) => {
     let supabaseSuccess = false;
     let finalId = mockId;
     
+    let supabaseWhyYou = whyyou.trim();
+    if (additionalFields && Object.keys(additionalFields).length > 0) {
+      const formattedFields = Object.entries(additionalFields)
+        .map(([key, val]) => `${key}: ${Array.isArray(val) ? val.join(', ') : val}`)
+        .join('\n');
+      supabaseWhyYou = `${formattedFields}\n\nStatement of Purpose:\n${whyyou.trim()}`;
+    }
+
     if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
       try {
         const { data, error } = await supabase
@@ -196,7 +225,7 @@ app.post('/api/applications', async (req, res) => {
               year: numYear, 
               branch: branch.trim(), 
               role: role.trim(), 
-              why_you: whyyou.trim(),
+              why_you: supabaseWhyYou,
               status: 'pending'
             }
           ])
@@ -221,6 +250,7 @@ app.post('/api/applications', async (req, res) => {
       branch: branch.trim(),
       role: role.trim(),
       whyyou: whyyou.trim(),
+      additionalFields: additionalFields || {},
       status: 'pending',
       submittedAt: new Date().toISOString()
     };
