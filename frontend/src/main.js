@@ -121,6 +121,15 @@ async function loadSocieties() {
 }
 
 // ─── Submit Application (API with localStorage fallback) ────────────────────
+function generateFallbackId() {
+  try {
+    return crypto.randomUUID();
+  } catch {
+    // Fallback for insecure contexts or older browsers where crypto.randomUUID is unavailable
+    return 'local_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 9);
+  }
+}
+
 async function submitApplication(payload) {
   // Try the backend API first
   try {
@@ -139,7 +148,7 @@ async function submitApplication(payload) {
 
     // Also save locally for records tracking
     const record = {
-      id: crypto.randomUUID(),
+      id: generateFallbackId(),
       ...payload,
       societyName: selectedSociety.name,
       submittedAt: new Date().toISOString(),
@@ -148,22 +157,28 @@ async function submitApplication(payload) {
     };
     saveApplication(record);
 
-    return result;
+    return { ...result, _source: 'api' };
   } catch (fetchErr) {
     // Backend unreachable — save to localStorage as fallback
     console.warn('⚠️ Backend unreachable, saving application locally:', fetchErr.message);
 
-    const record = {
-      id: crypto.randomUUID(),
-      ...payload,
-      societyName: selectedSociety.name,
-      submittedAt: new Date().toISOString(),
-      status: 'saved_locally',
-      source: 'local'
-    };
-    saveApplication(record);
+    try {
+      const record = {
+        id: generateFallbackId(),
+        ...payload,
+        societyName: selectedSociety.name,
+        submittedAt: new Date().toISOString(),
+        status: 'saved_locally',
+        source: 'local'
+      };
+      saveApplication(record);
 
-    return { success: true, message: 'Application saved locally', data: record };
+      return { success: true, message: 'Application saved locally', data: record, _source: 'local' };
+    } catch (localErr) {
+      // Even localStorage save failed — throw a clear, descriptive error
+      console.error('❌ Could not save application anywhere:', localErr.message);
+      throw new Error('Could not submit your application. Please check your internet connection and try again.');
+    }
   }
 }
 
@@ -792,7 +807,16 @@ async function handleFormSubmit(form) {
     closeDrawer();
 
     const textEl = document.getElementById('success-dialog-text');
-    textEl.innerHTML = `Hey <strong>${values.name}</strong>, your application to join <strong>${selectedSociety.name}</strong> as a <strong>${values.role}</strong> has been saved successfully. Our recruitment coordinators will contact you shortly!`;
+    const titleEl = successDialog.querySelector('.dialog-title');
+    const isLocal = result._source === 'local';
+
+    if (isLocal) {
+      if (titleEl) titleEl.textContent = 'Application Saved Offline';
+      textEl.innerHTML = `Hey <strong>${values.name}</strong>, since the recruitment server is currently offline or unreachable, your application to join <strong>${selectedSociety.name}</strong> as a <strong>${values.role}</strong> has been **saved locally on your device**. It will be synced once the connection is restored.`;
+    } else {
+      if (titleEl) titleEl.textContent = 'Application Submitted!';
+      textEl.innerHTML = `Hey <strong>${values.name}</strong>, your application to join <strong>${selectedSociety.name}</strong> as a <strong>${values.role}</strong> has been submitted successfully. Our recruitment coordinators will contact you shortly!`;
+    }
 
     if (window.lucide) window.lucide.createIcons();
     successDialog.classList.add('active');
