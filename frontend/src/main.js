@@ -712,97 +712,145 @@ function renderQuizContent() {
 }
 
 // ─── Application Records View ──────────────────────────────────────────────
-function renderRecordsView() {
-  const records = getSavedApplications();
+async function renderRecordsView() {
+  let records = getSavedApplications();
+  
+  // 1. Initial render using local storage data for fast responsiveness
+  renderHTML(records);
+  
+  // 2. Fetch latest status from backend API
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/applications`);
+    if (response.ok) {
+      const apiApps = await response.json();
+      
+      let changed = false;
+      records = records.map(rec => {
+        const matched = apiApps.find(a => 
+          a.id === rec.id || 
+          (a.name === rec.name && a.role === rec.role && a.societyId === rec.societyId)
+        );
+        if (matched && matched.status !== rec.status) {
+          changed = true;
+          return { ...rec, status: matched.status, id: matched.id };
+        }
+        return rec;
+      });
+      
+      if (changed) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+        // Re-render immediately on status update
+        renderHTML(records);
+      }
+    }
+  } catch (err) {
+    console.warn("Could not sync applications status from backend API:", err.message);
+  }
+  
+  function renderHTML(recordsList) {
+    let recordsHTML = '';
+    if (recordsList.length === 0) {
+      recordsHTML = `
+        <div style="text-align: center; padding: 48px 0; color: var(--text-secondary);">
+          <i data-lucide="clipboard-x" style="width: 48px; height: 48px; margin-bottom: 16px; color: var(--text-muted);"></i>
+          <p style="font-family: var(--font-mono); font-size: 13px; text-transform: uppercase;">No Applications Found</p>
+          <p style="font-size: 12px; margin-top: 8px;">Your application submissions will be listed here.</p>
+        </div>
+      `;
+    } else {
+      recordsHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+          <span style="font-family: var(--font-mono); font-size: 11px; text-transform: uppercase; color: var(--text-secondary);">${recordsList.length} Application(s)</span>
+          <button id="clear-all-records-btn" class="btn btn-secondary" style="padding: 4px 10px; font-size: 10px; border-color: var(--error); color: var(--error);">Clear All</button>
+        </div>
+        <div class="records-list-wrapper">
+          ${recordsList.map(rec => {
+            const dateStr = new Date(rec.submittedAt).toLocaleString();
+            
+            let statusClass = 'status-pending';
+            let statusLabel = 'Pending Review';
+            
+            if (rec.status === 'approved') {
+              statusClass = 'status-approved';
+              statusLabel = 'Approved';
+            } else if (rec.status === 'rejected') {
+              statusClass = 'status-rejected';
+              statusLabel = 'Rejected';
+            } else if (rec.status === 'saved_locally') {
+              statusClass = 'status-pending';
+              statusLabel = 'Offline Fallback';
+            }
+            
+            const statusBadge = `<span class="status-badge ${statusClass}">${statusLabel}</span>`;
+            
+            return `
+              <div class="record-card">
+                <button class="delete-record-btn close-btn" data-id="${rec.id}" aria-label="Delete record" style="position: absolute; top: 12px; right: 12px; width: 24px; height: 24px; font-size: 10px;">
+                  <i data-lucide="trash-2" style="width: 12px; height: 12px;"></i>
+                </button>
+                <div style="display: flex; align-items: center; gap: 8px; justify-content: space-between; padding-right: 24px;">
+                  <h4>${rec.societyName}</h4>
+                  ${statusBadge}
+                </div>
+                <div class="record-details-grid">
+                  <span class="record-details-label">Applicant:</span>
+                  <span class="record-details-val"><strong>${rec.name}</strong> (Year ${rec.year}, ${rec.branch})</span>
+                  <span class="record-details-label">Role:</span>
+                  <span class="record-details-val">${rec.role}</span>
+                  <span class="record-details-label">SOP:</span>
+                  <span class="record-details-val-sop">"${rec.whyyou}"</span>
+                  <span class="record-details-label">Submitted:</span>
+                  <span class="record-details-val">${dateStr}</span>
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      `;
+    }
 
-  let recordsHTML = '';
-  if (records.length === 0) {
-    recordsHTML = `
-      <div style="text-align: center; padding: 48px 0; color: var(--text-secondary);">
-        <i data-lucide="clipboard-x" style="width: 48px; height: 48px; margin-bottom: 16px; color: var(--text-muted);"></i>
-        <p style="font-family: var(--font-mono); font-size: 13px; text-transform: uppercase;">No Applications Found</p>
-        <p style="font-size: 12px; margin-top: 8px;">Your application submissions will be listed here.</p>
+    detailsDrawer.innerHTML = `
+      <div class="drawer-header">
+        <div class="drawer-title-group">
+          <span class="category-tag" style="align-self: flex-start; margin-bottom: 6px;">Application Records</span>
+          <h2>My Applications</h2>
+          <p class="drawer-tagline">Track your recruitment submissions across campus societies</p>
+        </div>
+        <button class="close-btn" id="drawer-close-btn" aria-label="Close panel">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+      <div class="drawer-body" style="flex-grow: 1; overflow-y: auto; display: flex; flex-direction: column;">
+        ${recordsHTML}
       </div>
     `;
-  } else {
-    recordsHTML = `
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-        <span style="font-family: var(--font-mono); font-size: 11px; text-transform: uppercase; color: var(--text-secondary);">${records.length} Application(s)</span>
-        <button id="clear-all-records-btn" class="btn btn-secondary" style="padding: 4px 10px; font-size: 10px; border-color: var(--error); color: var(--error);">Clear All</button>
-      </div>
-      <div class="records-list-wrapper">
-        ${records.map(rec => {
-          const dateStr = new Date(rec.submittedAt).toLocaleString();
-          const statusBadge = rec.status === 'submitted' 
-            ? `<span class="record-card-status-active">Active</span>` 
-            : `<span class="record-card-status-offline">Offline Fallback</span>`;
-          
-          return `
-            <div class="record-card">
-              <button class="delete-record-btn close-btn" data-id="${rec.id}" aria-label="Delete record" style="position: absolute; top: 12px; right: 12px; width: 24px; height: 24px; font-size: 10px;">
-                <i data-lucide="trash-2" style="width: 12px; height: 12px;"></i>
-              </button>
-              <div style="display: flex; align-items: center; gap: 8px; justify-content: space-between; padding-right: 24px;">
-                <h4>${rec.societyName}</h4>
-                ${statusBadge}
-              </div>
-              <div class="record-details-grid">
-                <span class="record-details-label">Applicant:</span>
-                <span class="record-details-val"><strong>${rec.name}</strong> (Year ${rec.year}, ${rec.branch})</span>
-                <span class="record-details-label">Role:</span>
-                <span class="record-details-val">${rec.role}</span>
-                <span class="record-details-label">SOP:</span>
-                <span class="record-details-val-sop">"${rec.whyyou}"</span>
-                <span class="record-details-label">Submitted:</span>
-                <span class="record-details-val">${dateStr}</span>
-              </div>
-            </div>
-          `;
-        }).join('')}
-      </div>
-    `;
-  }
 
-  detailsDrawer.innerHTML = `
-    <div class="drawer-header">
-      <div class="drawer-title-group">
-        <span class="category-tag" style="align-self: flex-start; margin-bottom: 6px;">Application Records</span>
-        <h2>My Applications</h2>
-        <p class="drawer-tagline">Track your recruitment submissions across campus societies</p>
-      </div>
-      <button class="close-btn" id="drawer-close-btn" aria-label="Close panel">
-        <i data-lucide="x"></i>
-      </button>
-    </div>
-    <div class="drawer-body" style="flex-grow: 1; overflow-y: auto; display: flex; flex-direction: column;">
-      ${recordsHTML}
-    </div>
-  `;
+    document.getElementById('drawer-close-btn').addEventListener('click', closeDrawer);
 
-  document.getElementById('drawer-close-btn').addEventListener('click', closeDrawer);
+    const clearAllBtn = document.getElementById('clear-all-records-btn');
+    if (clearAllBtn) {
+      clearAllBtn.addEventListener('click', () => {
+        if (confirm('Are you sure you want to clear all application records?')) {
+          localStorage.removeItem(STORAGE_KEY);
+          renderHTML([]);
+        }
+      });
+    }
 
-  const clearAllBtn = document.getElementById('clear-all-records-btn');
-  if (clearAllBtn) {
-    clearAllBtn.addEventListener('click', () => {
-      if (confirm('Are you sure you want to clear all application records?')) {
-        localStorage.removeItem(STORAGE_KEY);
-        renderRecordsView();
-        if (window.lucide) window.lucide.createIcons();
-      }
+    const deleteButtons = detailsDrawer.querySelectorAll('.delete-record-btn');
+    deleteButtons.forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const id = btn.dataset.id;
+        if (id) {
+          deleteApplication(id);
+          const updated = getSavedApplications();
+          renderHTML(updated);
+        }
+      });
     });
-  }
 
-  const deleteButtons = detailsDrawer.querySelectorAll('.delete-record-btn');
-  deleteButtons.forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      const id = btn.dataset.id;
-      if (id) {
-        deleteApplication(id);
-        renderRecordsView();
-        if (window.lucide) window.lucide.createIcons();
-      }
-    });
-  });
+    if (window.lucide) window.lucide.createIcons();
+  }
 }
 
 // ─── Role-Based View Routing ────────────────────────────────────────────────
