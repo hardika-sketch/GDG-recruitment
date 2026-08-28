@@ -299,6 +299,7 @@ function openDrawer(society, mode = 'details') {
 
 function closeDrawer() {
   drawerOverlay.classList.remove('active');
+  detailsDrawer.classList.remove('active');
   selectedSociety = null;
 }
 
