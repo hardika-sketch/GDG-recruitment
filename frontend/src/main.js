@@ -823,7 +823,15 @@ function handleAuthViewSwitch(user) {
     // Student or logged out: show explorer, hide dashboard
     explorerView.style.display = 'block';
     recruiterView.style.display = 'none';
-    if (recordsBtn) recordsBtn.style.display = '';
+    
+    // Only show "My Applications" if logged in as a student
+    if (recordsBtn) {
+      if (user && user.role === 'student') {
+        recordsBtn.style.display = '';
+      } else {
+        recordsBtn.style.display = 'none';
+      }
+    }
     if (quizBtn) quizBtn.style.display = '';
   }
 }
