@@ -72,11 +72,15 @@ window.addEventListener('DOMContentLoaded', async () => {
 
   // Initialize Auth
   initAuth(API_BASE_URL, (user) => {
-    console.log('Auth state initialized/changed:', user);
+    console.log('Auth state changed:', user);
+    handleAuthViewSwitch(user);
   });
 
   // Fetch societies from backend API dynamically
   await loadSocieties();
+
+  // Apply role-based view routing on initial load (handles page refresh)
+  handleAuthViewSwitch(getCurrentUser());
 });
 
 // ─── Dynamic Data Fetching ──────────────────────────────────────────────────
@@ -355,18 +359,39 @@ function renderDetailsView() {
     </div>
 
     <div class="drawer-footer">
-      <button class="btn btn-primary" id="drawer-apply-btn" style="flex-grow: 1;">
-        <i data-lucide="edit-3"></i>
-        <span>Apply for Recruitment</span>
-      </button>
+      ${(() => {
+        const user = getCurrentUser();
+        if (user && user.role !== 'recruiter') {
+          return `<button class="btn btn-primary" id="drawer-apply-btn" style="flex-grow: 1;">
+            <i data-lucide="edit-3"></i>
+            <span>Apply for Recruitment</span>
+          </button>`;
+        } else if (!user) {
+          return `<button class="btn btn-secondary" id="drawer-signin-prompt-btn" style="flex-grow: 1;">
+            <i data-lucide="log-in"></i>
+            <span>Sign In to Apply</span>
+          </button>`;
+        }
+        return '';
+      })()}
     </div>
   `;
 
   document.getElementById('drawer-close-btn').addEventListener('click', closeDrawer);
-  document.getElementById('drawer-apply-btn').addEventListener('click', () => {
-    drawerViewMode = 'apply';
-    renderDrawerContent();
-  });
+  const applyBtn = document.getElementById('drawer-apply-btn');
+  if (applyBtn) {
+    applyBtn.addEventListener('click', () => {
+      drawerViewMode = 'apply';
+      renderDrawerContent();
+    });
+  }
+  const signinPrompt = document.getElementById('drawer-signin-prompt-btn');
+  if (signinPrompt) {
+    signinPrompt.addEventListener('click', () => {
+      closeDrawer();
+      document.getElementById('auth-toggle-btn').click();
+    });
+  }
 }
 
 // ─── Application Form View ──────────────────────────────────────────────────
@@ -780,3 +805,198 @@ function renderRecordsView() {
   });
 }
 
+// ─── Role-Based View Routing ────────────────────────────────────────────────
+function handleAuthViewSwitch(user) {
+  const explorerView = document.getElementById('explorer-view');
+  const recruiterView = document.getElementById('recruiter-view');
+  const recordsBtn = document.getElementById('records-toggle-btn');
+  const quizBtn = document.getElementById('quiz-toggle-btn');
+
+  if (user && user.role === 'recruiter') {
+    // Recruiter logged in: hide explorer, show dashboard
+    explorerView.style.display = 'none';
+    recruiterView.style.display = 'block';
+    if (recordsBtn) recordsBtn.style.display = 'none';
+    if (quizBtn) quizBtn.style.display = 'none';
+    renderRecruiterDashboard(user);
+  } else {
+    // Student or logged out: show explorer, hide dashboard
+    explorerView.style.display = 'block';
+    recruiterView.style.display = 'none';
+    if (recordsBtn) recordsBtn.style.display = '';
+    if (quizBtn) quizBtn.style.display = '';
+  }
+}
+
+// ─── Recruiter Dashboard ────────────────────────────────────────────────────
+async function renderRecruiterDashboard(user) {
+  const recruiterView = document.getElementById('recruiter-view');
+  if (!recruiterView) return;
+
+  const societyId = user.society;
+  const societyObj = societies.find(s => s.id === societyId);
+  const societyName = societyObj ? societyObj.name : societyId;
+
+  // Show loading state
+  recruiterView.innerHTML = `
+    <div class="dashboard-header">
+      <p class="dashboard-tagline">Recruiter Dashboard</p>
+      <h2 class="dashboard-title">${societyName}</h2>
+      <p class="dashboard-subtitle">Welcome, ${user.name}. Review and manage incoming applications.</p>
+    </div>
+    <div style="text-align: center; padding: 48px 0; color: var(--text-secondary);">
+      <p style="font-family: var(--font-mono); font-size: 11px; text-transform: uppercase;">Loading Applications...</p>
+    </div>
+  `;
+
+  // Fetch applications for this society
+  let applications = [];
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/applications?societyId=${societyId}`);
+    if (response.ok) {
+      applications = await response.json();
+    }
+  } catch (err) {
+    console.warn('Could not fetch applications from backend:', err.message);
+  }
+
+  // Also check localStorage for locally-saved applications
+  const localRecords = getSavedApplications().filter(r => r.societyId === societyId || (societyObj && r.societyName === societyObj.name));
+  // Merge local records that don't exist in API results
+  localRecords.forEach(lr => {
+    const exists = applications.some(a => a.id === lr.id);
+    if (!exists) {
+      applications.push({
+        id: lr.id,
+        societyId: lr.societyId || societyId,
+        name: lr.name,
+        year: lr.year,
+        branch: lr.branch,
+        role: lr.role,
+        whyyou: lr.whyyou,
+        status: lr.status || 'pending',
+        submittedAt: lr.submittedAt
+      });
+    }
+  });
+
+  // Compute metrics
+  const total = applications.length;
+  const approved = applications.filter(a => a.status === 'approved').length;
+  const rejected = applications.filter(a => a.status === 'rejected').length;
+  const pending = applications.filter(a => !a.status || a.status === 'pending' || a.status === 'submitted' || a.status === 'saved_locally').length;
+
+  // Build applications list HTML
+  let appsHTML = '';
+  if (applications.length === 0) {
+    appsHTML = `
+      <div style="text-align: center; padding: 48px 0; color: var(--text-secondary);">
+        <i data-lucide="inbox" style="width: 48px; height: 48px; margin-bottom: 16px; color: var(--text-muted);"></i>
+        <p style="font-family: var(--font-mono); font-size: 13px; text-transform: uppercase;">No Applications Yet</p>
+        <p style="font-size: 12px; margin-top: 8px;">Applications submitted by students to ${societyName} will appear here.</p>
+      </div>
+    `;
+  } else {
+    appsHTML = `<div class="recruiter-apps-list">
+      ${applications.map(app => {
+        const statusClass = app.status === 'approved' ? 'status-approved' 
+          : app.status === 'rejected' ? 'status-rejected' 
+          : 'status-pending';
+        const statusLabel = app.status === 'approved' ? 'Approved'
+          : app.status === 'rejected' ? 'Rejected'
+          : 'Pending Review';
+        const dateStr = app.submittedAt ? new Date(app.submittedAt).toLocaleString() : 'N/A';
+        const showActions = app.status !== 'approved' && app.status !== 'rejected';
+
+        return `
+          <div class="recruiter-app-card" data-app-id="${app.id}">
+            <div class="recruiter-app-header">
+              <div>
+                <h4 class="recruiter-app-title">${app.name}</h4>
+                <p class="recruiter-app-meta">Year ${app.year} · ${app.branch} · Applied for: <strong>${app.role}</strong></p>
+                <p class="recruiter-app-meta">Submitted: ${dateStr}</p>
+              </div>
+              <span class="status-badge ${statusClass}">${statusLabel}</span>
+            </div>
+            <div class="recruiter-app-sop">"${app.whyyou}"</div>
+            ${showActions ? `
+              <div class="recruiter-app-actions">
+                <button class="btn btn-reject recruiter-reject-btn" data-id="${app.id}">
+                  <i data-lucide="x" style="width: 14px; height: 14px;"></i>
+                  <span>Reject</span>
+                </button>
+                <button class="btn btn-approve recruiter-approve-btn" data-id="${app.id}">
+                  <i data-lucide="check" style="width: 14px; height: 14px;"></i>
+                  <span>Approve</span>
+                </button>
+              </div>
+            ` : ''}
+          </div>
+        `;
+      }).join('')}
+    </div>`;
+  }
+
+  recruiterView.innerHTML = `
+    <div class="dashboard-header">
+      <p class="dashboard-tagline">Recruiter Dashboard</p>
+      <h2 class="dashboard-title">${societyName}</h2>
+      <p class="dashboard-subtitle">Welcome, ${user.name}. Review and manage incoming applications.</p>
+    </div>
+
+    <div class="metrics-grid">
+      <div class="metric-card">
+        <span class="metric-label">Total Applications</span>
+        <span class="metric-val">${total}</span>
+      </div>
+      <div class="metric-card">
+        <span class="metric-label">Pending Review</span>
+        <span class="metric-val">${pending}</span>
+      </div>
+      <div class="metric-card">
+        <span class="metric-label">Approved</span>
+        <span class="metric-val" style="color: var(--success);">${approved}</span>
+      </div>
+      <div class="metric-card">
+        <span class="metric-label">Rejected</span>
+        <span class="metric-val" style="color: var(--error);">${rejected}</span>
+      </div>
+    </div>
+
+    <h3 class="recruiter-apps-section-title">Candidate Applications</h3>
+    ${appsHTML}
+  `;
+
+  if (window.lucide) window.lucide.createIcons();
+
+  // Bind approve/reject actions
+  recruiterView.querySelectorAll('.recruiter-approve-btn').forEach(btn => {
+    btn.addEventListener('click', () => updateApplicationStatus(btn.dataset.id, 'approved', user));
+  });
+  recruiterView.querySelectorAll('.recruiter-reject-btn').forEach(btn => {
+    btn.addEventListener('click', () => updateApplicationStatus(btn.dataset.id, 'rejected', user));
+  });
+}
+
+async function updateApplicationStatus(applicationId, status, user) {
+  try {
+    await fetch(`${API_BASE_URL}/api/applications/status`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ applicationId, status })
+    });
+  } catch (err) {
+    console.warn('Backend status update failed, updating locally:', err.message);
+  }
+
+  // Also update in localStorage records
+  const records = getSavedApplications();
+  const idx = records.findIndex(r => r.id === applicationId);
+  if (idx !== -1) {
+    records[idx].status = status;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+  }
+
+  // Re-render dashboard
+  renderRecruiterDashboard(user);
+}
