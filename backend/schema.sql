@@ -100,6 +100,8 @@ CREATE TABLE IF NOT EXISTS recruitments (
 CREATE TABLE IF NOT EXISTS audit_logs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+    user_name TEXT,
+    role TEXT CHECK (role IN ('student', 'recruiter', 'admin')),
     user_email TEXT,
     user_role TEXT,
     society_id TEXT REFERENCES societies(id) ON DELETE SET NULL,
@@ -109,6 +111,7 @@ CREATE TABLE IF NOT EXISTS audit_logs (
     details JSONB DEFAULT '{}'::jsonb,
     ip_address TEXT,
     user_agent TEXT,
+    time_access TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
@@ -116,10 +119,13 @@ CREATE TABLE IF NOT EXISTS audit_logs (
 CREATE OR REPLACE VIEW access_logs AS
 SELECT 
     id,
+    user_name,
+    role,
     user_email,
     action,
     details::text AS details,
     ip_address,
+    time_access,
     created_at
 FROM audit_logs;
 
@@ -175,3 +181,52 @@ BEGIN
         CREATE TRIGGER trg_recruitments_updated_at BEFORE UPDATE ON recruitments FOR EACH ROW EXECUTE FUNCTION update_timestamp_column();
     END IF;
 END $$;
+
+-- ------------------------------------------------------------------------------
+-- 9. Auto-Log User Sign In Trigger (Database-Level Automation)
+-- ------------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION log_user_signin_trigger()
+RETURNS TRIGGER AS $$
+BEGIN
+    -- Log automatically whenever last_login_at is updated (indicating a sign-in)
+    IF (OLD.last_login_at IS DISTINCT FROM NEW.last_login_at) AND NEW.last_login_at IS NOT NULL THEN
+        INSERT INTO audit_logs (
+            user_id,
+            user_name,
+            role,
+            user_email,
+            user_role,
+            action,
+            entity_type,
+            entity_id,
+            details,
+            time_access,
+            created_at
+        ) VALUES (
+            NEW.id,
+            NEW.name,
+            NEW.role,
+            NEW.email,
+            NEW.role,
+            'USER_SIGNIN',
+            'auth',
+            NEW.id::text,
+            jsonb_build_object('role', NEW.role, 'email', NEW.email),
+            NEW.last_login_at,
+            NEW.last_login_at
+        );
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'trg_users_audit_signin') THEN
+        CREATE TRIGGER trg_users_audit_signin 
+        AFTER UPDATE OF last_login_at ON users 
+        FOR EACH ROW 
+        EXECUTE FUNCTION log_user_signin_trigger();
+    END IF;
+END $$;
+

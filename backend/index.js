@@ -79,8 +79,10 @@ const supabase = createClient(
 // ─── Audit Logger Helper ─────────────────────────────────────────────────────
 async function logAudit({
   userId = null,
+  userName = null,
   userEmail = null,
   userRole = null,
+  role = null,
   societyId = null,
   action,
   entityType,
@@ -90,11 +92,15 @@ async function logAudit({
 }) {
   const ipAddress = req ? (req.headers['x-forwarded-for'] || req.socket.remoteAddress || '127.0.0.1') : null;
   const userAgent = req ? req.headers['user-agent'] : null;
+  const nowTimestamp = new Date().toISOString();
+  const effectiveRole = role || userRole;
 
   const logEntry = {
     user_id: userId,
+    user_name: userName,
+    role: effectiveRole,
     user_email: userEmail,
-    user_role: userRole,
+    user_role: effectiveRole,
     society_id: societyId,
     action,
     entity_type: entityType,
@@ -102,7 +108,8 @@ async function logAudit({
     details,
     ip_address: ipAddress,
     user_agent: userAgent,
-    created_at: new Date().toISOString()
+    time_access: nowTimestamp,
+    created_at: nowTimestamp
   };
 
   // 1. Insert into Supabase audit_logs table if configured
@@ -624,8 +631,10 @@ app.post('/api/auth/signup', async (req, res) => {
     // 2. Audit Log
     await logAudit({
       userId: createdUserId,
+      userName: name.trim(),
       userEmail: cleanEmail,
       userRole: userRole,
+      role: userRole,
       societyId: userSociety,
       action: 'USER_SIGNUP',
       entityType: 'user',
@@ -725,8 +734,10 @@ app.post('/api/auth/signin', async (req, res) => {
     // 3. Log Audit Action
     await logAudit({
       userId: authUser.id,
+      userName: authUser.name,
       userEmail: authUser.email,
       userRole: authUser.role || expectedRole,
+      role: authUser.role || expectedRole,
       societyId: authUser.society || null,
       action: 'USER_SIGNIN',
       entityType: 'auth',
