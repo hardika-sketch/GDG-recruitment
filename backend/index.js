@@ -10,125 +10,231 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const USERS_FILE_PATH = path.join(__dirname, 'users.json');
 const APPLICATIONS_FILE_PATH = path.join(__dirname, 'applications.json');
+const AUDIT_LOGS_FILE_PATH = path.join(__dirname, 'audit_logs.json');
 
-// File-based persistence helper for local mock DB fallback (Users)
-function loadUsersFromFile() {
-  try {
-    if (fs.existsSync(USERS_FILE_PATH)) {
-      return JSON.parse(fs.readFileSync(USERS_FILE_PATH, 'utf8'));
-    }
-  } catch (err) {
-    console.error("Error reading users file:", err);
-  }
-  return [];
-}
-
-function saveUsersToFile(users) {
-  try {
-    fs.writeFileSync(USERS_FILE_PATH, JSON.stringify(users, null, 2), 'utf8');
-  } catch (err) {
-    console.error("Error writing users file:", err);
-  }
-}
-
-// File-based persistence helper for local mock DB fallback (Applications)
-function loadApplicationsFromFile() {
-  try {
-    if (fs.existsSync(APPLICATIONS_FILE_PATH)) {
-      return JSON.parse(fs.readFileSync(APPLICATIONS_FILE_PATH, 'utf8'));
-    }
-  } catch (err) {
-    console.error("Error reading applications file:", err);
-  }
-  return [];
-}
-
-function saveApplicationsToFile(apps) {
-  try {
-    fs.writeFileSync(APPLICATIONS_FILE_PATH, JSON.stringify(apps, null, 2), 'utf8');
-  } catch (err) {
-    console.error("Error writing applications file:", err);
-  }
-}
-
-// Load environment variables
+// Load environment variables from .env file
 dotenv.config();
+
+// ─── Local Mock DB Fallback Helpers ──────────────────────────────────────────
+function loadJsonFile(filePath, fallback = []) {
+  try {
+    if (fs.existsSync(filePath)) {
+      return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+    }
+  } catch (err) {
+    console.error(`Error reading ${path.basename(filePath)}:`, err.message);
+  }
+  return fallback;
+}
+
+function saveJsonFile(filePath, data) {
+  try {
+    fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
+  } catch (err) {
+    console.error(`Error writing ${path.basename(filePath)}:`, err.message);
+  }
+}
+
+const loadUsersFromFile = () => loadJsonFile(USERS_FILE_PATH, []);
+const saveUsersToFile = (users) => saveJsonFile(USERS_FILE_PATH, users);
+
+const loadApplicationsFromFile = () => loadJsonFile(APPLICATIONS_FILE_PATH, []);
+const saveApplicationsToFile = (apps) => saveJsonFile(APPLICATIONS_FILE_PATH, apps);
+
+const loadAuditLogsFromFile = () => loadJsonFile(AUDIT_LOGS_FILE_PATH, []);
+const saveAuditLogsToFile = (logs) => saveJsonFile(AUDIT_LOGS_FILE_PATH, logs);
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Middleware
+// ─── Middleware ───────────────────────────────────────────────────────────────
 app.use(cors({
   origin: process.env.FRONTEND_URL || '*'
 }));
 app.use(express.json());
 
-// Initialize Supabase Client
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+// ─── Initialize Supabase Client ──────────────────────────────────────────────
+const supabaseUrl = process.env.SUPABASE_URL?.trim();
+const supabaseKey = (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_KEY)?.trim();
 
-if (!supabaseUrl || !supabaseKey) {
-  console.warn("⚠️ Warning: SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is missing from environment variables.");
+const isSupabaseConfigured = Boolean(
+  supabaseUrl && 
+  supabaseKey && 
+  supabaseUrl.startsWith('http') && 
+  !supabaseUrl.includes('your-project-id') &&
+  !supabaseKey.includes('your-supabase-service-role')
+);
+
+if (!isSupabaseConfigured) {
+  console.warn("⚠️ Warning: Supabase is not fully configured in .env. Running with local storage fallback active.");
+} else {
+  console.log("⚡ Supabase credentials detected. Connecting to:", supabaseUrl);
 }
 
-const supabase = createClient(supabaseUrl || 'https://placeholder.supabase.co', supabaseKey || 'placeholder');
+const supabase = createClient(
+  isSupabaseConfigured ? supabaseUrl : 'https://placeholder.supabase.co',
+  isSupabaseConfigured ? supabaseKey : 'placeholder-key'
+);
 
-// API Health Check
+// ─── Audit Logger Helper ─────────────────────────────────────────────────────
+async function logAudit({
+  userId = null,
+  userEmail = null,
+  userRole = null,
+  societyId = null,
+  action,
+  entityType,
+  entityId = null,
+  details = {},
+  req = null
+}) {
+  const ipAddress = req ? (req.headers['x-forwarded-for'] || req.socket.remoteAddress || '127.0.0.1') : null;
+  const userAgent = req ? req.headers['user-agent'] : null;
+
+  const logEntry = {
+    user_id: userId,
+    user_email: userEmail,
+    user_role: userRole,
+    society_id: societyId,
+    action,
+    entity_type: entityType,
+    entity_id: entityId,
+    details,
+    ip_address: ipAddress,
+    user_agent: userAgent,
+    created_at: new Date().toISOString()
+  };
+
+  // 1. Insert into Supabase audit_logs table if configured
+  if (isSupabaseConfigured) {
+    try {
+      const { error } = await supabase.from('audit_logs').insert([logEntry]);
+      if (error) {
+        console.warn("Supabase audit_logs insert failed:", error.message);
+      }
+    } catch (err) {
+      console.warn("Supabase audit_logs exception:", err.message);
+    }
+  }
+
+  // 2. Always persist to local audit log fallback
+  const localLogs = loadAuditLogsFromFile();
+  localLogs.unshift({
+    id: 'log_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 6),
+    ...logEntry
+  });
+  if (localLogs.length > 500) localLogs.length = 500; // keep last 500 entries
+  saveAuditLogsToFile(localLogs);
+}
+
+// ─── Health & Database Diagnostics ───────────────────────────────────────────
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  res.json({
+    status: 'ok',
+    supabaseConnected: isSupabaseConfigured,
+    timestamp: new Date().toISOString()
+  });
 });
 
-// GET /api/societies - Retrieve all societies from Supabase
+app.get('/api/db/status', async (req, res) => {
+  const result = {
+    supabaseConfigured: isSupabaseConfigured,
+    supabaseUrl: isSupabaseConfigured ? supabaseUrl : null,
+    tables: {
+      societies: { count: 0, status: 'unknown' },
+      users: { count: 0, status: 'unknown' },
+      recruiters: { count: 0, status: 'unknown' },
+      applications: { count: 0, status: 'unknown' },
+      recruitments: { count: 0, status: 'unknown' },
+      audit_logs: { count: 0, status: 'unknown' }
+    }
+  };
+
+  if (isSupabaseConfigured) {
+    for (const table of Object.keys(result.tables)) {
+      try {
+        const { count, error } = await supabase.from(table).select('*', { count: 'exact', head: true });
+        if (error) {
+          result.tables[table] = { count: 0, status: 'error', error: error.message };
+        } else {
+          result.tables[table] = { count: count || 0, status: 'ok' };
+        }
+      } catch (err) {
+        result.tables[table] = { count: 0, status: 'exception', error: err.message };
+      }
+    }
+  } else {
+    // Fallback counts
+    result.tables.users.count = loadUsersFromFile().length;
+    result.tables.users.status = 'local_fallback';
+    result.tables.applications.count = loadApplicationsFromFile().length;
+    result.tables.applications.status = 'local_fallback';
+    result.tables.audit_logs.count = loadAuditLogsFromFile().length;
+    result.tables.audit_logs.status = 'local_fallback';
+  }
+
+  res.json(result);
+});
+
+// ─── GET /api/societies ──────────────────────────────────────────────────────
 app.get('/api/societies', async (req, res) => {
   try {
-    const { data, error } = await supabase
-      .from('societies')
-      .select('*')
-      .order('name');
-    
-    if (error) {
-      console.error("Error fetching societies from Supabase:", error);
-      return res.status(500).json({ error: error.message });
+    if (isSupabaseConfigured) {
+      const { data, error } = await supabase
+        .from('societies')
+        .select('*')
+        .order('name');
+      
+      if (!error && data && data.length > 0) {
+        // Map database columns to camelCase expected by frontend
+        const mapped = data.map(s => ({
+          id: s.id,
+          name: s.name,
+          category: s.category,
+          tagline: s.tagline,
+          icon: s.icon,
+          description: s.description,
+          criteria: s.criteria,
+          roles: s.roles || [],
+          customFields: s.custom_fields || []
+        }));
+        return res.json(mapped);
+      }
     }
     
-    res.json(data);
+    // Fallback to static data
+    const { societies } = await import('../frontend/src/data.js').catch(() => ({ societies: [] }));
+    res.json(societies);
   } catch (err) {
     console.error("Internal Server Error in GET /api/societies:", err);
     res.status(500).json({ error: 'Internal Server Error' });
   }
 });
 
-// GET /api/applications - Retrieve applications (optionally filtered by societyId)
+// ─── GET /api/applications ───────────────────────────────────────────────────
 app.get('/api/applications', async (req, res) => {
   try {
-    const { societyId } = req.query;
-    
-    // First, try loading locally
+    const { societyId, email, status } = req.query;
     const localApps = loadApplicationsFromFile();
-    
-    // Filter locally if societyId is specified
-    const filteredApps = societyId
-      ? localApps.filter(app => app.societyId === societyId)
-      : localApps;
-      
-    // Attempt Supabase fetch if active
-    if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+
+    if (isSupabaseConfigured) {
       try {
-        let query = supabase.from('applications').select('*');
-        if (societyId) {
-          query = query.eq('society_id', societyId);
-        }
+        let query = supabase.from('applications').select('*').order('created_at', { ascending: false });
+        if (societyId) query = query.eq('society_id', societyId);
+        if (email) query = query.eq('email', email.trim().toLowerCase());
+        if (status) query = query.eq('status', status);
+
         const { data, error } = await query;
         if (!error && data) {
-          // Normalize snake_case keys from DB to camelCase for the frontend
           const apiApps = data.map(s => {
-            let parsedWhyYou = s.why_you || '';
-            let additionalFields = {};
-            
-            if (parsedWhyYou.includes('\n\nStatement of Purpose:\n')) {
-              const parts = parsedWhyYou.split('\n\nStatement of Purpose:\n');
+            let whyYou = s.why_you || '';
+            let additionalFields = s.additional_info || {};
+
+            // Backward compatibility for legacy why_you formatted strings
+            if (whyYou.includes('\n\nStatement of Purpose:\n') && Object.keys(additionalFields).length === 0) {
+              const parts = whyYou.split('\n\nStatement of Purpose:\n');
               const fieldsPart = parts[0];
-              parsedWhyYou = parts[1];
+              whyYou = parts[1];
               
               fieldsPart.split('\n').forEach(line => {
                 const colonIdx = line.indexOf(':');
@@ -143,48 +249,58 @@ app.get('/api/applications', async (req, res) => {
             return {
               id: s.id,
               societyId: s.society_id,
+              userId: s.user_id,
               name: s.name,
+              email: s.email,
+              phone: s.phone,
               year: s.year,
               branch: s.branch,
               role: s.role,
-              whyyou: parsedWhyYou,
-              additionalFields,
+              whyyou: whyYou,
+              additionalFields: additionalFields,
               status: s.status || 'pending',
+              reviewedBy: s.reviewed_by,
+              reviewerNotes: s.reviewer_notes,
+              reviewedAt: s.reviewed_at,
               submittedAt: s.created_at || new Date().toISOString()
             };
           });
-          
-          // Merge API results into local users file if not present (simple sync)
+
+          // Sync into local cache
           apiApps.forEach(apiApp => {
             const exists = localApps.some(l => l.id === apiApp.id);
-            if (!exists) {
-              localApps.push(apiApp);
-            }
+            if (!exists) localApps.push(apiApp);
           });
           saveApplicationsToFile(localApps);
-          
+
           return res.json(apiApps);
         }
       } catch (dbErr) {
-        console.warn("Supabase fetch failed (returning local applications cache):", dbErr.message);
+        console.warn("Supabase fetch applications error:", dbErr.message);
       }
     }
-    
-    res.json(filteredApps);
+
+    // Local fallback filtering
+    let filtered = localApps;
+    if (societyId) filtered = filtered.filter(a => a.societyId === societyId);
+    if (email) filtered = filtered.filter(a => a.email?.toLowerCase() === email.toLowerCase());
+    if (status) filtered = filtered.filter(a => a.status === status);
+
+    res.json(filtered);
   } catch (err) {
     console.error("Internal Server Error in GET /api/applications:", err);
     res.status(500).json({ error: 'Internal Server Error' });
   }
 });
 
-// POST /api/applications - Submit application
+// ─── POST /api/applications ──────────────────────────────────────────────────
 app.post('/api/applications', async (req, res) => {
   try {
-    const { societyId, name, year, branch, role, whyyou, additionalFields } = req.body;
+    const { societyId, name, year, branch, role, whyyou, additionalFields, email, phone, userId } = req.body;
     
-    // Server-side validation checks
+    // Server-side validation
     if (!societyId || !name || !year || !branch || !role || !whyyou) {
-      return res.status(400).json({ error: 'All fields are required' });
+      return res.status(400).json({ error: 'All primary fields (societyId, name, year, branch, role, whyyou) are required' });
     }
 
     if (name.trim().length < 3) {
@@ -192,121 +308,197 @@ app.post('/api/applications', async (req, res) => {
     }
 
     const numYear = parseInt(year, 10);
-    if (isNaN(numYear) || numYear < 1 || numYear > 4) {
-      return res.status(400).json({ error: 'Year must be between 1 and 4' });
+    if (isNaN(numYear) || numYear < 1 || numYear > 5) {
+      return res.status(400).json({ error: 'Year must be between 1 and 5' });
     }
 
-    if (whyyou.trim().length < 20 || whyyou.trim().length > 500) {
-      return res.status(400).json({ error: 'Explanation must be between 20 and 500 characters' });
+    if (whyyou.trim().length < 20 || whyyou.trim().length > 1000) {
+      return res.status(400).json({ error: 'Statement of purpose must be between 20 and 1000 characters' });
     }
 
-    const mockId = 'app_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 7);
+    let finalId = 'app_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 7);
+    const cleanEmail = email ? email.trim().toLowerCase() : null;
+    const cleanPhone = phone ? phone.trim() : null;
+    const cleanFields = additionalFields && typeof additionalFields === 'object' ? additionalFields : {};
 
-    // Try inserting into Supabase applications table
-    let supabaseSuccess = false;
-    let finalId = mockId;
-    
-    let supabaseWhyYou = whyyou.trim();
-    if (additionalFields && Object.keys(additionalFields).length > 0) {
-      const formattedFields = Object.entries(additionalFields)
-        .map(([key, val]) => `${key}: ${Array.isArray(val) ? val.join(', ') : val}`)
-        .join('\n');
-      supabaseWhyYou = `${formattedFields}\n\nStatement of Purpose:\n${whyyou.trim()}`;
-    }
-
-    if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    // 1. Persist to Supabase applications table
+    if (isSupabaseConfigured) {
       try {
+        const insertPayload = {
+          society_id: societyId,
+          user_id: userId || null,
+          name: name.trim(),
+          email: cleanEmail,
+          phone: cleanPhone,
+          year: numYear,
+          branch: branch.trim(),
+          role: role.trim(),
+          why_you: whyyou.trim(),
+          additional_info: cleanFields,
+          status: 'pending'
+        };
+
         const { data, error } = await supabase
           .from('applications')
-          .insert([
-            { 
-              society_id: societyId, 
-              name: name.trim(), 
-              year: numYear, 
-              branch: branch.trim(), 
-              role: role.trim(), 
-              why_you: supabaseWhyYou,
-              status: 'pending'
-            }
-          ])
+          .insert([insertPayload])
           .select();
 
         if (!error && data && data.length > 0) {
-          supabaseSuccess = true;
           finalId = data[0].id;
+          console.log(`✅ Application persisted in Supabase [ID: ${finalId}]`);
+        } else if (error) {
+          console.warn("Supabase application insert error:", error.message);
         }
       } catch (dbErr) {
-        console.warn("Supabase insert issue (syncing locally):", dbErr.message);
+        console.warn("Supabase application connection error:", dbErr.message);
       }
     }
 
-    // Always keep local applications.json in sync
+    // 2. Audit Log entry
+    await logAudit({
+      userId: userId || null,
+      userEmail: cleanEmail,
+      userRole: 'student',
+      societyId: societyId,
+      action: 'APPLICATION_SUBMIT',
+      entityType: 'application',
+      entityId: finalId,
+      details: {
+        applicant_name: name.trim(),
+        role: role.trim(),
+        year: numYear,
+        branch: branch.trim()
+      },
+      req
+    });
+
+    // 3. Local fallback persistence
     const localApps = loadApplicationsFromFile();
     const newApp = {
       id: finalId,
       societyId,
+      userId: userId || null,
       name: name.trim(),
+      email: cleanEmail,
+      phone: cleanPhone,
       year: numYear,
       branch: branch.trim(),
       role: role.trim(),
       whyyou: whyyou.trim(),
-      additionalFields: additionalFields || {},
+      additionalFields: cleanFields,
       status: 'pending',
       submittedAt: new Date().toISOString()
     };
     localApps.push(newApp);
     saveApplicationsToFile(localApps);
 
-    res.status(201).json({ success: true, message: 'Application submitted successfully', data: newApp });
+    res.status(201).json({
+      success: true,
+      message: 'Application submitted successfully',
+      data: newApp
+    });
   } catch (err) {
     console.error("Internal Server Error in POST /api/applications:", err);
     res.status(500).json({ error: 'Internal Server Error' });
   }
 });
 
-// POST /api/applications/status - Update application status (Approve/Reject)
+// ─── POST /api/applications/status ───────────────────────────────────────────
 app.post('/api/applications/status', async (req, res) => {
   try {
-    const { applicationId, status } = req.body;
+    const { applicationId, status, reviewerId, reviewerEmail, reviewerNotes } = req.body;
 
     if (!applicationId || !status) {
       return res.status(400).json({ error: 'applicationId and status are required.' });
     }
 
-    if (!['pending', 'approved', 'rejected'].includes(status)) {
-      return res.status(400).json({ error: 'Invalid status value. Must be pending, approved, or rejected.' });
+    if (!['pending', 'approved', 'rejected', 'under_review'].includes(status)) {
+      return res.status(400).json({ error: 'Invalid status value.' });
     }
 
     const localApps = loadApplicationsFromFile();
     const appIndex = localApps.findIndex(app => app.id === applicationId);
 
-    if (appIndex === -1) {
-      return res.status(404).json({ error: 'Application not found in database.' });
+    let targetSocietyId = null;
+    let targetRole = null;
+    let applicantName = null;
+
+    if (appIndex !== -1) {
+      localApps[appIndex].status = status;
+      localApps[appIndex].reviewedAt = new Date().toISOString();
+      localApps[appIndex].reviewerNotes = reviewerNotes || null;
+      targetSocietyId = localApps[appIndex].societyId;
+      targetRole = localApps[appIndex].role;
+      applicantName = localApps[appIndex].name;
+      saveApplicationsToFile(localApps);
     }
 
-    localApps[appIndex].status = status;
-    saveApplicationsToFile(localApps);
-
-    // Try updating Supabase
-    if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    // 1. Update Supabase applications table
+    if (isSupabaseConfigured) {
       try {
-        const { error } = await supabase
+        const updatePayload = {
+          status: status,
+          reviewed_at: new Date().toISOString(),
+          reviewer_notes: reviewerNotes || null
+        };
+        if (reviewerId) updatePayload.reviewed_by = reviewerId;
+
+        const { data, error } = await supabase
           .from('applications')
-          .update({ status: status })
-          .eq('id', applicationId);
-          
-        if (error) {
-          console.warn("Supabase status update error:", error.message);
+          .update(updatePayload)
+          .eq('id', applicationId)
+          .select();
+
+        if (!error && data && data.length > 0) {
+          targetSocietyId = data[0].society_id;
+          targetRole = data[0].role;
+          applicantName = data[0].name;
+        }
+
+        // 2. If approved, automatically increment recruitment intake count
+        if (status === 'approved' && targetSocietyId && targetRole) {
+          const { data: recData } = await supabase
+            .from('recruitments')
+            .select('*')
+            .eq('society_id', targetSocietyId)
+            .eq('role', targetRole);
+
+          if (recData && recData.length > 0) {
+            const currentIntake = (recData[0].current_intake || 0) + 1;
+            await supabase
+              .from('recruitments')
+              .update({ current_intake: currentIntake })
+              .eq('id', recData[0].id);
+          }
         }
       } catch (dbErr) {
-        console.warn("Supabase status update connection issue:", dbErr.message);
+        console.warn("Supabase status update error:", dbErr.message);
       }
     }
+
+    // 3. Log Audit Action
+    await logAudit({
+      userId: reviewerId || null,
+      userEmail: reviewerEmail || 'recruiter',
+      userRole: 'recruiter',
+      societyId: targetSocietyId,
+      action: 'APPLICATION_STATUS_CHANGE',
+      entityType: 'application',
+      entityId: applicationId,
+      details: {
+        new_status: status,
+        applicant_name: applicantName,
+        role: targetRole,
+        notes: reviewerNotes || null
+      },
+      req
+    });
 
     res.json({
       success: true,
       message: `Application status updated to ${status}`,
-      data: localApps[appIndex]
+      applicationId,
+      status
     });
 
   } catch (err) {
@@ -315,7 +507,7 @@ app.post('/api/applications/status', async (req, res) => {
   }
 });
 
-// Helper validation function
+// ─── Helper: Password Strength Check ─────────────────────────────────────────
 function checkPasswordStrength(p) {
   const password = p || "";
   const minLength = password.length >= 8;
@@ -326,12 +518,11 @@ function checkPasswordStrength(p) {
   return minLength && hasUpper && hasLower && hasNumber && hasSpecial;
 }
 
-// POST /api/auth/signup - User registration
+// ─── POST /api/auth/signup ───────────────────────────────────────────────────
 app.post('/api/auth/signup', async (req, res) => {
   try {
-    const { name, email, phone, password, role, society } = req.body;
+    const { name, email, phone, password, role, society, designation } = req.body;
 
-    // Field checks
     if (!name || !email || !phone || !password) {
       return res.status(400).json({ error: 'All fields (name, email, phone, password) are required.' });
     }
@@ -357,16 +548,8 @@ app.post('/api/auth/signup', async (req, res) => {
     }
 
     const localUsers = loadUsersFromFile();
-    const isEmailTaken = localUsers.some(u => u.email.toLowerCase() === email.toLowerCase().trim());
-    const isPhoneTaken = localUsers.some(u => u.phone === phone.trim());
-
-    if (isEmailTaken) {
-      return res.status(400).json({ error: 'Email address is already registered.' });
-    }
-    if (isPhoneTaken) {
-      return res.status(400).json({ error: 'Phone number is already registered.' });
-    }
-
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanPhone = phone.trim();
     const userRole = role || 'student';
     const userSociety = userRole === 'recruiter' ? society : null;
 
@@ -374,46 +557,93 @@ app.post('/api/auth/signup', async (req, res) => {
       return res.status(400).json({ error: 'Recruiters must select their head society.' });
     }
 
-    // Try saving to Supabase if config is provided
-    let supabaseSuccess = false;
-    let savedUser = null;
-    
-    if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    let createdUserId = 'usr_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 6);
+
+    // 1. Supabase User Insertion
+    if (isSupabaseConfigured) {
       try {
-        const { data, error } = await supabase
+        // Check uniqueness in Supabase
+        const { data: existingUsers } = await supabase
+          .from('users')
+          .select('id, email')
+          .eq('email', cleanEmail);
+
+        if (existingUsers && existingUsers.length > 0) {
+          return res.status(400).json({ error: 'Email address is already registered in database.' });
+        }
+
+        const { data: insertedUser, error: userError } = await supabase
           .from('users')
           .insert([
-            { 
-              name: name.trim(), 
-              email: email.trim().toLowerCase(), 
-              phone: phone.trim(), 
-              password: password,
+            {
+              name: name.trim(),
+              email: cleanEmail,
+              phone: cleanPhone,
+              password: password, // In production, hash with bcrypt
               role: userRole,
               society: userSociety
             }
           ])
           .select();
-          
-        if (!error && data && data.length > 0) {
-          supabaseSuccess = true;
-          savedUser = data[0];
-          console.log("Registered user in Supabase");
-        } else if (error) {
-          console.warn("Supabase insert error (falling back to users.json):", error.message);
+
+        if (userError) {
+          console.warn("Supabase user insert error:", userError.message);
+        } else if (insertedUser && insertedUser.length > 0) {
+          createdUserId = insertedUser[0].id;
+          console.log(`✅ User registered in Supabase users table [ID: ${createdUserId}]`);
+
+          // If recruiter, also create profile record in recruiters table
+          if (userRole === 'recruiter') {
+            const { error: recError } = await supabase
+              .from('recruiters')
+              .insert([
+                {
+                  user_id: createdUserId,
+                  society_id: userSociety,
+                  designation: designation || 'Lead Recruiter',
+                  status: 'active'
+                }
+              ]);
+            if (recError) {
+              console.warn("Supabase recruiters table insert error:", recError.message);
+            } else {
+              console.log(`✅ Recruiter profile linked in Supabase recruiters table`);
+            }
+          }
         }
       } catch (dbErr) {
-        console.warn("Supabase connection issue (falling back to users.json):", dbErr.message);
+        console.warn("Supabase signup connection error:", dbErr.message);
+      }
+    } else {
+      // Local uniqueness check
+      if (localUsers.some(u => u.email.toLowerCase() === cleanEmail)) {
+        return res.status(400).json({ error: 'Email address is already registered.' });
       }
     }
 
-    // Always keep local users.json in sync as secondary store & fallback
+    // 2. Audit Log
+    await logAudit({
+      userId: createdUserId,
+      userEmail: cleanEmail,
+      userRole: userRole,
+      societyId: userSociety,
+      action: 'USER_SIGNUP',
+      entityType: 'user',
+      entityId: createdUserId,
+      details: { name: name.trim(), role: userRole, society: userSociety },
+      req
+    });
+
+    // 3. Local fallback persistence
     const newUser = {
+      id: createdUserId,
       name: name.trim(),
-      email: email.trim().toLowerCase(),
-      phone: phone.trim(),
+      email: cleanEmail,
+      phone: cleanPhone,
       password: password,
       role: userRole,
       society: userSociety,
+      designation: designation || 'Lead Recruiter',
       registeredAt: new Date().toISOString()
     };
     localUsers.push(newUser);
@@ -423,11 +653,13 @@ app.post('/api/auth/signup', async (req, res) => {
       success: true,
       message: 'User registered successfully',
       user: {
+        id: newUser.id,
         name: newUser.name,
         email: newUser.email,
         phone: newUser.phone,
         role: newUser.role,
-        society: newUser.society
+        society: newUser.society,
+        designation: newUser.designation
       }
     });
 
@@ -437,7 +669,7 @@ app.post('/api/auth/signup', async (req, res) => {
   }
 });
 
-// POST /api/auth/signin - User login with email/phone
+// ─── POST /api/auth/signin ───────────────────────────────────────────────────
 app.post('/api/auth/signin', async (req, res) => {
   try {
     const { identifier, password, role } = req.body;
@@ -447,77 +679,75 @@ app.post('/api/auth/signin', async (req, res) => {
     }
 
     const expectedRole = role || 'student';
+    const cleanIdent = identifier.trim().toLowerCase();
+    let authUser = null;
 
-    // First try local users file
-    const localUsers = loadUsersFromFile();
-    const matchedUser = localUsers.find(
-      u => (u.email.toLowerCase() === identifier.trim().toLowerCase() || u.phone === identifier.trim()) 
-        && u.password === password
-        && (u.role || 'student') === expectedRole
-    );
-
-    if (matchedUser) {
-      return res.json({
-        success: true,
-        message: 'Signed in successfully',
-        user: {
-          name: matchedUser.name,
-          email: matchedUser.email,
-          phone: matchedUser.phone,
-          role: matchedUser.role || 'student',
-          society: matchedUser.society || null
-        }
-      });
-    }
-
-    // If local check fails, check Supabase as secondary
-    if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    // 1. Supabase Auth Verification
+    if (isSupabaseConfigured) {
       try {
         let query = supabase.from('users').select('*').eq('password', password).eq('role', expectedRole);
-        
-        if (identifier.includes('@')) {
-          query = query.eq('email', identifier.trim().toLowerCase());
+        if (cleanIdent.includes('@')) {
+          query = query.eq('email', cleanIdent);
         } else {
           query = query.eq('phone', identifier.trim());
         }
 
         const { data, error } = await query;
         if (!error && data && data.length > 0) {
-          const dbUser = data[0];
+          authUser = data[0];
           
-          // Sync to local file if not present
-          const exists = localUsers.some(u => u.email.toLowerCase() === dbUser.email.toLowerCase());
-          if (!exists) {
-            localUsers.push({
-              name: dbUser.name,
-              email: dbUser.email,
-              phone: dbUser.phone,
-              password: dbUser.password,
-              role: dbUser.role || 'student',
-              society: dbUser.society || null,
-              registeredAt: dbUser.created_at || new Date().toISOString()
-            });
-            saveUsersToFile(localUsers);
-          }
-
-          return res.json({
-            success: true,
-            message: 'Signed in successfully',
-            user: {
-              name: dbUser.name,
-              email: dbUser.email,
-              phone: dbUser.phone,
-              role: dbUser.role || 'student',
-              society: dbUser.society || null
-            }
-          });
+          // Update last_login_at in Supabase
+          await supabase
+            .from('users')
+            .update({ last_login_at: new Date().toISOString() })
+            .eq('id', authUser.id);
         }
       } catch (dbErr) {
-        console.warn("Supabase query issue:", dbErr.message);
+        console.warn("Supabase signin error:", dbErr.message);
       }
     }
 
-    res.status(401).json({ error: `Invalid ${expectedRole} credentials or password.` });
+    // 2. Fallback to local users
+    if (!authUser) {
+      const localUsers = loadUsersFromFile();
+      const localMatch = localUsers.find(
+        u => (u.email.toLowerCase() === cleanIdent || u.phone === identifier.trim()) 
+          && u.password === password
+          && (u.role || 'student') === expectedRole
+      );
+      if (localMatch) authUser = localMatch;
+    }
+
+    if (!authUser) {
+      return res.status(401).json({ error: `Invalid ${expectedRole} credentials or password.` });
+    }
+
+    // 3. Log Audit Action
+    await logAudit({
+      userId: authUser.id,
+      userEmail: authUser.email,
+      userRole: authUser.role || expectedRole,
+      societyId: authUser.society || null,
+      action: 'USER_SIGNIN',
+      entityType: 'auth',
+      entityId: authUser.id,
+      details: { role: authUser.role || expectedRole },
+      req
+    });
+
+    res.json({
+      success: true,
+      message: 'Signed in successfully',
+      user: {
+        id: authUser.id,
+        name: authUser.name,
+        email: authUser.email,
+        phone: authUser.phone,
+        role: authUser.role || 'student',
+        society: authUser.society || null,
+        designation: authUser.designation || 'Lead Recruiter'
+      }
+    });
 
   } catch (err) {
     console.error("Internal Server Error in POST /api/auth/signin:", err);
@@ -525,6 +755,138 @@ app.post('/api/auth/signin', async (req, res) => {
   }
 });
 
+// ─── GET /api/audit-logs ─────────────────────────────────────────────────────
+app.get('/api/audit-logs', async (req, res) => {
+  try {
+    const { societyId, action, limit = 50 } = req.query;
+
+    if (isSupabaseConfigured) {
+      try {
+        let query = supabase
+          .from('audit_logs')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(parseInt(limit, 10) || 50);
+
+        if (societyId) query = query.eq('society_id', societyId);
+        if (action) query = query.eq('action', action);
+
+        const { data, error } = await query;
+        if (!error && data) {
+          return res.json(data);
+        }
+      } catch (dbErr) {
+        console.warn("Supabase audit log fetch error:", dbErr.message);
+      }
+    }
+
+    // Fallback to local logs
+    let localLogs = loadAuditLogsFromFile();
+    if (societyId) localLogs = localLogs.filter(l => l.society_id === societyId);
+    if (action) localLogs = localLogs.filter(l => l.action === action);
+
+    res.json(localLogs.slice(0, parseInt(limit, 10) || 50));
+  } catch (err) {
+    console.error("Internal Server Error in GET /api/audit-logs:", err);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+// ─── GET & PATCH /api/recruitments ───────────────────────────────────────────
+app.get('/api/recruitments', async (req, res) => {
+  try {
+    const { societyId } = req.query;
+    if (isSupabaseConfigured) {
+      let query = supabase.from('recruitments').select('*').order('role');
+      if (societyId) query = query.eq('society_id', societyId);
+
+      const { data, error } = await query;
+      if (!error && data) {
+        return res.json(data);
+      }
+    }
+    res.json([]);
+  } catch (err) {
+    console.error("Internal Server Error in GET /api/recruitments:", err);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+app.patch('/api/recruitments', async (req, res) => {
+  try {
+    const { societyId, role, status, targetCount, currentIntake, editorEmail } = req.body;
+
+    if (!societyId || !role) {
+      return res.status(400).json({ error: 'societyId and role are required.' });
+    }
+
+    if (isSupabaseConfigured) {
+      const updateData = {};
+      if (status) updateData.status = status;
+      if (typeof targetCount === 'number') updateData.target_count = targetCount;
+      if (typeof currentIntake === 'number') updateData.current_intake = currentIntake;
+
+      const { data, error } = await supabase
+        .from('recruitments')
+        .update(updateData)
+        .eq('society_id', societyId)
+        .eq('role', role)
+        .select();
+
+      if (!error && data && data.length > 0) {
+        await logAudit({
+          userEmail: editorEmail || 'recruiter',
+          userRole: 'recruiter',
+          societyId,
+          action: 'RECRUITMENT_UPDATE',
+          entityType: 'recruitment',
+          entityId: data[0].id,
+          details: { role, updates: updateData },
+          req
+        });
+
+        return res.json({ success: true, data: data[0] });
+      }
+    }
+
+    res.json({ success: true, message: 'Updated locally / mock mode' });
+  } catch (err) {
+    console.error("Internal Server Error in PATCH /api/recruitments:", err);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+// ─── GET /api/recruiters ─────────────────────────────────────────────────────
+app.get('/api/recruiters', async (req, res) => {
+  try {
+    const { societyId } = req.query;
+    if (isSupabaseConfigured) {
+      let query = supabase
+        .from('recruiters')
+        .select(`
+          id,
+          designation,
+          status,
+          created_at,
+          user:users(id, name, email, phone),
+          society:societies(id, name)
+        `);
+
+      if (societyId) query = query.eq('society_id', societyId);
+
+      const { data, error } = await query;
+      if (!error && data) {
+        return res.json(data);
+      }
+    }
+    res.json([]);
+  } catch (err) {
+    console.error("Internal Server Error in GET /api/recruiters:", err);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+// ─── Start Express Server ────────────────────────────────────────────────────
 app.listen(PORT, () => {
-  console.log(`🚀 Backend Express API listening on port ${PORT}`);
+  console.log(`🚀 Societies Explorer Backend API listening on port ${PORT}`);
 });

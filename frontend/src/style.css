@@ -1474,5 +1474,96 @@ body.light-mode .auth-overlay {
   word-break: break-word;
 }
 
+/* Quotas & Capacity Grid */
+.recruiter-quotas-section {
+  margin-bottom: 32px;
+}
 
+.quotas-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
 
+.quota-card {
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  padding: 14px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.quota-role {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.quota-progress-bar {
+  width: 100%;
+  height: 4px;
+  background-color: var(--border-color);
+  margin-top: 4px;
+  overflow: hidden;
+}
+
+.quota-progress-fill {
+  height: 100%;
+  background-color: var(--text-primary);
+  transition: width 0.3s ease;
+}
+
+.quota-numbers {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-secondary);
+  display: flex;
+  justify-content: space-between;
+}
+
+/* Audit / Activity Logs in Dashboard */
+.audit-logs-section {
+  margin-top: 36px;
+}
+
+.audit-log-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.audit-log-item {
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  padding: 10px 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  gap: 12px;
+}
+
+.audit-log-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.audit-badge {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border: 1px solid var(--border-color);
+  background-color: rgba(255, 255, 255, 0.03);
+}
+
+.audit-time {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}

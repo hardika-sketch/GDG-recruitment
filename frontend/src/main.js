@@ -773,8 +773,12 @@ async function handleFormSubmit(form) {
   }
 
   // Prepare payload for the backend
+  const loggedInUser = getCurrentUser();
   const payload = {
     societyId: selectedSociety.id,
+    userId: loggedInUser ? loggedInUser.id : null,
+    email: loggedInUser ? loggedInUser.email : null,
+    phone: loggedInUser ? loggedInUser.phone : null,
     name: values.name.trim(),
     year: values.year,
     branch: values.branch.trim(),
@@ -1149,6 +1153,20 @@ async function renderRecruiterDashboard(user) {
     console.warn('Could not fetch applications from backend:', err.message);
   }
 
+  // Fetch recruitment quotas and activity audit logs
+  let recruitments = [];
+  let auditLogs = [];
+  try {
+    const [recRes, logRes] = await Promise.all([
+      fetch(`${API_BASE_URL}/api/recruitments?societyId=${societyId}`),
+      fetch(`${API_BASE_URL}/api/audit-logs?societyId=${societyId}&limit=5`)
+    ]);
+    if (recRes.ok) recruitments = await recRes.json();
+    if (logRes.ok) auditLogs = await logRes.json();
+  } catch (err) {
+    console.warn('Could not fetch quotas or audit logs:', err.message);
+  }
+
   // Also check localStorage for locally-saved applications
   const localRecords = getSavedApplications().filter(r => r.societyId === societyId || (societyObj && r.societyName === societyObj.name));
   // Merge local records that don't exist in API results
@@ -1237,6 +1255,63 @@ async function renderRecruiterDashboard(user) {
     </div>`;
   }
 
+  // Build Quotas HTML
+  let quotasHTML = '';
+  if (recruitments.length > 0) {
+    quotasHTML = `
+      <div class="recruiter-quotas-section">
+        <h3 class="recruiter-apps-section-title">Role Capacities & Targets</h3>
+        <div class="quotas-grid">
+          ${recruitments.map(r => {
+            const target = r.target_count || 5;
+            const current = r.current_intake || 0;
+            const pct = Math.min(100, Math.round((current / target) * 100));
+            return `
+              <div class="quota-card">
+                <div class="quota-role">${r.role}</div>
+                <div class="quota-numbers">
+                  <span>Intake: <strong>${current}</strong> / ${target}</span>
+                  <span>${pct}%</span>
+                </div>
+                <div class="quota-progress-bar">
+                  <div class="quota-progress-fill" style="width: ${pct}%;"></div>
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      </div>
+    `;
+  }
+
+  // Build Audit Logs HTML
+  let auditLogsHTML = '';
+  if (auditLogs.length > 0) {
+    auditLogsHTML = `
+      <div class="audit-logs-section">
+        <h3 class="recruiter-apps-section-title">Recent Activity & Audit Trail</h3>
+        <div class="audit-log-list">
+          ${auditLogs.map(log => {
+            const timeStr = log.created_at ? new Date(log.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+            const actionFormatted = (log.action || '').replace(/_/g, ' ');
+            const detailsText = log.details && log.details.applicant_name 
+              ? `Applicant: ${log.details.applicant_name} (${log.details.role || ''})`
+              : (log.user_email ? `By: ${log.user_email}` : '');
+            return `
+              <div class="audit-log-item">
+                <div class="audit-log-main">
+                  <span class="audit-badge">${actionFormatted}</span>
+                  <span style="color: var(--text-secondary);">${detailsText}</span>
+                </div>
+                <span class="audit-time">${timeStr}</span>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      </div>
+    `;
+  }
+
   recruiterView.innerHTML = `
     <div class="dashboard-header">
       <p class="dashboard-tagline">Recruiter Dashboard</p>
@@ -1263,8 +1338,12 @@ async function renderRecruiterDashboard(user) {
       </div>
     </div>
 
+    ${quotasHTML}
+
     <h3 class="recruiter-apps-section-title">Candidate Applications</h3>
     ${appsHTML}
+
+    ${auditLogsHTML}
   `;
 
   if (window.lucide) window.lucide.createIcons();
@@ -1283,7 +1362,12 @@ async function updateApplicationStatus(applicationId, status, user) {
     await fetch(`${API_BASE_URL}/api/applications/status`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ applicationId, status })
+      body: JSON.stringify({
+        applicationId,
+        status,
+        reviewerId: user ? user.id : null,
+        reviewerEmail: user ? user.email : null
+      })
     });
   } catch (err) {
     console.warn('Backend status update failed, updating locally:', err.message);
